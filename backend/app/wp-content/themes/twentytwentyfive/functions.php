@@ -156,3 +156,31 @@ if ( ! function_exists( 'twentytwentyfive_format_binding' ) ) :
 		}
 	}
 endif;
+
+// end point para el registro de usuarios
+/*
+add_action('rest_api_init', function () {
+    register_rest_route('jwt-auth/v1', '/register', array(
+        'methods' => 'POST',
+        'callback' => 'custom_user_registration',
+        'permission_callback' => '__return_true',
+    ));
+});
+
+function custom_user_registration($request) {
+    $username = sanitize_text_field($request['username']);
+    $password = sanitize_text_field($request['password']);
+
+    if (username_exists($username)) {
+        return new WP_Error('user_exists', 'El nombre de usuario ya está en uso.', array('status' => 400));
+    }
+
+    $user_id = wp_create_user($username, $password);
+
+    if (is_wp_error($user_id)) {
+        return new WP_Error('registration_failed', 'Error al registrar el usuario.', array('status' => 500));
+    }
+
+    return array('success' => true, 'message' => 'Usuario registrado exitosamente.');
+}
+*/

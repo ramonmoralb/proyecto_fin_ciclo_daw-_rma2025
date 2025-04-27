@@ -20,6 +20,10 @@ define('PM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PM_PLUGIN_VERSION', '1.0.0');
 
+// Incluir el archivo para el registro de usuarios
+include_once PM_PLUGIN_DIR . 'includes/PM_custon_user_register.php';
+
+
 // =============================================
 // REGISTRO DE POST TYPE Y META CAMPOS
 // =============================================
