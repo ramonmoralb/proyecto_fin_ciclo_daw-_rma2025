@@ -1,0 +1,52 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: mysql-custom.Dockerfile
+    container_name: mysql_db_proyecto_prod
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data_proyecto_prod:/var/lib/mysql
+    networks:
+      - wordpress_network_proyecto_prod
+      
+  wordpress:
+    image: wordpress:latest
+    depends_on:
+      - db
+    container_name: wordpress_proyecto_prod
+    ports:
+      - "8002:80" # Cambiar el puerto para evitar conflictos
+    environment:
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+    volumes:
+      - ./app/wp-content:/var/www/html/wp-content
+      - ./app/config/dev/wp-config.php:/var/www/html/wp-config.php
+    networks:
+      - wordpress_network_proyecto_prod
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin_proyecto_prod
+
+    ports:
+      - "8082:80" # Cambiar el puerto para evitar conflictos
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    networks:
+      - wordpress_network_proyecto_prod
+
+networks:
+  wordpress_network_proyecto_prod:
+
+volumes:
+  db_data_proyecto_prod:
