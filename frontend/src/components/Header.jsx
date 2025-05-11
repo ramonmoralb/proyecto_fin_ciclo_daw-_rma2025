@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import LogoWebSVG from "../assets/LogoWebSVG.svg"; // Importar el logo
 
 const Header = () => {
   const { isAuthenticated, userName, userRole, logout } = useContext(AuthContext);
@@ -12,9 +13,10 @@ const Header = () => {
   };
 
   return (
-    <header>
+    <header style={{ display: "flex", alignItems: "center", padding: "1rem", background: "#f1f1f1" }}>
+      <img src={LogoWebSVG} alt="Logo" style={{ width: "50px", height: "50px", marginRight: "1rem" }} />
       <nav>
-        <ul style={{ display: "flex", listStyle: "none", gap: "1rem" }}>
+        <ul style={{ display: "flex", listStyle: "none", gap: "1rem", margin: 0 }}>
           <li>
             <Link to="/">Inicio</Link>
           </li>

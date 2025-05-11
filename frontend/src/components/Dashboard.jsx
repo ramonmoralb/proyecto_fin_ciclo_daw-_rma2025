@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { LOCAL_URL_API } from "../constants/constans";
+import CrearProyecto from "./CrearProyecto";
 
 const Dashboard = () => {
   const [role, setRole] = useState("");
@@ -11,7 +12,7 @@ const Dashboard = () => {
       try {
         const token = localStorage.getItem("jwtToken"); // Obtén el token de localStorage
         if (!token) {
-          throw new Error("Token no encontrado en localStorage.");         
+          throw new Error("Token no encontrado en localStorage.");
         }
         const response = await axios.get(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
           headers: {
@@ -44,6 +45,7 @@ const Dashboard = () => {
         <div>
           <h2>Bienvenido, Administrador</h2>
           <p>Aquí puedes gestionar proyectos y tareas.</p>
+          <CrearProyecto /> {/* Mostrar el componente CrearProyecto */}
         </div>
       )}
       {role === "project_user" && (

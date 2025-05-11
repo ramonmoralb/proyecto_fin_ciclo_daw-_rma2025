@@ -78,7 +78,8 @@ function PM_register_project_post_type() {
         'has_archive'           => true,
         'exclude_from_search'   => false,
         'publicly_queryable'    => true,
-        'capability_type'       => 'post',
+        'capability_type'       => array('proyecto', 'proyectos'),
+        'map_meta_cap'          => true,
         'rewrite'              => array(
             'slug' => 'proyectos',
             'with_front' => true,
@@ -110,7 +111,7 @@ function PM_register_project_meta() {
             ),
         ),
         'auth_callback' => function() {
-            return current_user_can('edit_posts');
+            return current_user_can('edit_proyectos') || current_user_can('edit_posts');
         }
     ));
 
@@ -137,7 +138,7 @@ function PM_register_project_meta() {
             ),
         ),
         'auth_callback' => function() {
-            return current_user_can('edit_posts');
+            return current_user_can('edit_proyectos') || current_user_can('edit_posts');
         }
     ));
 }
@@ -148,7 +149,7 @@ function PM_register_project_meta() {
 
 // Función para autorizar la actualización de metadatos
 function PM_authorize_meta_update($allowed, $meta_key, $post_id, $user_id, $cap, $caps) {
-    return current_user_can('edit_post', $post_id);
+    return current_user_can('edit_proyectos') || current_user_can('edit_posts');
 }
 
 // Función para sanitizar los participantes
@@ -189,15 +190,3 @@ add_filter('auth_post_meta_tareas', 'PM_authorize_meta_update', 10, 6);
 add_filter('sanitize_post_meta_participantes', 'PM_sanitize_participantes', 10, 3);
 add_filter('sanitize_post_meta_tareas', 'PM_sanitize_tareas', 10, 3);
 
-// Flush rewrite rules al activar el plugin
-function PM_activate_plugin() {
-    PM_register_project_post_type();
-    flush_rewrite_rules();
-}
-register_activation_hook(__FILE__, 'PM_activate_plugin');
-
-// Flush rewrite rules al desactivar el plugin
-function PM_deactivate_plugin() {
-    flush_rewrite_rules();
-}
-register_deactivation_hook(__FILE__, 'PM_deactivate_plugin');

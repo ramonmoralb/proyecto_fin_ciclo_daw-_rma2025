@@ -33,6 +33,13 @@ function PM_register_custom_roles() {
             'manage_categories' => true,
             'edit_others_posts' => true,
             'publish_posts' => true,
+            'edit_proyectos' => true,
+            'edit_published_proyectos' => true,
+            'publish_proyectos' => true,
+            'delete_proyectos' => true,
+            'delete_published_proyectos' => true,
+            'edit_others_proyectos' => true,
+            'delete_others_proyectos' => true,
         )
     );
 
@@ -42,12 +49,36 @@ function PM_register_custom_roles() {
         __('Usuario de Proyectos', 'project-management'),
         array(
             'read' => true,
-            'edit_posts' => false,
+            'edit_posts' => true,
             'delete_posts' => false,
+            'edit_proyectos' => true,
+            'edit_published_proyectos' => true,
+            'publish_proyectos' => true,
         )
     );
 }
 add_action('init', 'PM_register_custom_roles');
+
+function PM_update_role_capabilities() {
+    $admin_role = get_role('project_admin');
+    if ($admin_role) {
+        $admin_role->add_cap('edit_proyectos');
+        $admin_role->add_cap('edit_published_proyectos');
+        $admin_role->add_cap('publish_proyectos');
+        $admin_role->add_cap('delete_proyectos');
+        $admin_role->add_cap('delete_published_proyectos');
+        $admin_role->add_cap('edit_others_proyectos');
+        $admin_role->add_cap('delete_others_proyectos');
+    }
+
+    $user_role = get_role('project_user');
+    if ($user_role) {
+        $user_role->add_cap('edit_proyectos');
+        $user_role->add_cap('edit_published_proyectos');
+        $user_role->add_cap('publish_proyectos');
+    }
+}
+add_action('init', 'PM_update_role_capabilities');
 
 function custom_user_registration($request) {
     $username = sanitize_text_field($request['username']);
@@ -100,4 +131,11 @@ add_filter('jwt_auth_token_before_dispatch', function ($data, $user) {
     $user_data = get_userdata($user->ID);
     $data['roles'] = $user_data->roles; // Añadir roles a la respuesta del token
     return $data;
+}, 10, 2);
+
+// Modificar la consulta de usuarios en la API REST para incluir a todos los usuarios
+add_filter('rest_user_query', function ($args, $request) {
+    // Incluir todos los usuarios, incluso los que no tienen publicaciones
+    $args['has_published_posts'] = false;
+    return $args;
 }, 10, 2);
