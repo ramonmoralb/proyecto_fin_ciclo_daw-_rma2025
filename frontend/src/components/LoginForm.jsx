@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import axios from "axios";
 import { LOCAL_URL_API } from "../constants/constans";
-import { useNavigate } from "react-router-dom"; // Importar useNavigate
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const navigate = useNavigate(); // Hook para redirigir
+  const { login } = useContext(AuthContext); // Usar el contexto
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,14 +24,17 @@ const LoginForm = () => {
       );
 
       const token = response.data.token;
-      console.log("Token obtenido:", token);
+      const userRole = response.data.roles ? response.data.roles[0] : null; // Obtener el rol del usuario
 
-      // Verifica si el token existe antes de guardarlo
+      console.log("Token obtenido:", token);
+      console.log("Rol del usuario:", userRole);
+
       if (token) {
         localStorage.setItem("jwtToken", token); // Guarda el token en localStorage
+        login(username, userRole); // Actualizar el contexto con los datos del usuario
         setMessage("Inicio de sesión exitoso. Redirigiendo al dashboard...");
         setTimeout(() => {
-          navigate("/dashboard"); // Redirigir al dashboard
+          navigate("/dashboard");
         }, 2000);
       } else {
         setMessage("Error: No se recibió un token válido.");

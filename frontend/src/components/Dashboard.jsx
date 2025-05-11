@@ -11,9 +11,8 @@ const Dashboard = () => {
       try {
         const token = localStorage.getItem("jwtToken"); // Obtén el token de localStorage
         if (!token) {
-          throw new Error("Token no encontrado en localStorage.");
+          throw new Error("Token no encontrado en localStorage.");         
         }
-
         const response = await axios.get(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
           headers: {
             Authorization: `Bearer ${token}`, // Envía el token en la cabecera
@@ -31,7 +30,6 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-
     fetchUserRole();
   }, []);
 

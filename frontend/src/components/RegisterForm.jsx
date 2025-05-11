@@ -23,7 +23,8 @@ const RegisterForm = () => {
     }
 
     try {
-      const response = await axios.post(
+      // Realizar el registro
+      const registerResponse = await axios.post(
         `${LOCAL_URL_API}wp-json/jwt-auth/v1/register`,
         {
           username: username,
@@ -35,10 +36,30 @@ const RegisterForm = () => {
         }
       );
 
-      setMessage("Registro exitoso. Redirigiendo al dashboard...");
-      setTimeout(() => {
-        navigate("/dashboard"); // Redirigir al dashboard
-      }, 2000);
+      console.log("Registro exitoso:", registerResponse.data);
+
+      // Iniciar sesión automáticamente después del registro
+      const loginResponse = await axios.post(
+        `${LOCAL_URL_API}wp-json/jwt-auth/v1/token`,
+        {
+          username: username,
+          password: password,
+        }
+      );
+
+      const token = loginResponse.data.token;
+      console.log("Token obtenido después del registro:", token);
+
+      // Guardar el token en localStorage
+      if (token) {
+        localStorage.setItem("jwtToken", token);
+        setMessage("Registro exitoso. Redirigiendo al dashboard...");
+        setTimeout(() => {
+          navigate("/dashboard"); // Redirigir al dashboard
+        }, 2000);
+      } else {
+        setMessage("Error: No se recibió un token válido.");
+      }
     } catch (error) {
       console.error("Error al registrar:", error);
       setMessage("Error al registrar. Verifica tus datos.");

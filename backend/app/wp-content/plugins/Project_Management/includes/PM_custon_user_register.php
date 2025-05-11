@@ -94,3 +94,10 @@ add_filter('rest_prepare_user', function ($response, $user, $request) {
     $response->data['roles'] = $user->roles; // Añadir roles a la respuesta
     return $response;
 }, 10, 3);
+
+// Añadir los roles del usuario a la respuesta del token
+add_filter('jwt_auth_token_before_dispatch', function ($data, $user) {
+    $user_data = get_userdata($user->ID);
+    $data['roles'] = $user_data->roles; // Añadir roles a la respuesta del token
+    return $data;
+}, 10, 2);
