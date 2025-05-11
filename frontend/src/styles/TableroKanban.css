@@ -1,0 +1,237 @@
+/* Estilos para el contenedor del proyecto */
+.proyecto-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.proyecto-header {
+  margin-bottom: 30px;
+}
+
+.proyecto-header h1 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.proyecto-meta {
+  color: #666;
+}
+
+/* Estilos para la lista de participantes */
+.proyecto-participantes {
+  margin-bottom: 30px;
+}
+
+.participantes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.participante-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+
+.participante-avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.participante-info h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.participante-info p {
+  margin: 5px 0 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Estilos para el tablero Kanban */
+.tablero-kanban {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.kanban-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.btn-nueva-tarea {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-nueva-tarea:hover {
+  background: #45a049;
+}
+
+/* Estilos para el formulario de nueva tarea */
+.formulario-nueva-tarea {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.form-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.form-actions button[type="submit"] {
+  background: #4CAF50;
+  color: white;
+}
+
+.form-actions button[type="button"] {
+  background: #f44336;
+  color: white;
+}
+
+/* Estilos para las columnas del Kanban */
+.kanban-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  min-height: 500px;
+}
+
+.kanban-column {
+  background: #fff;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.kanban-column h4 {
+  margin: 0 0 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #eee;
+  color: #333;
+  text-align: center;
+}
+
+.tareas-container {
+  min-height: 100px;
+}
+
+/* Estilos para las tarjetas de tareas */
+.tarea-card {
+  background: white;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  cursor: move;
+}
+
+.tarea-card h5 {
+  margin: 0 0 10px;
+  color: #333;
+}
+
+.tarea-card p {
+  margin: 0 0 10px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.tarea-asignado {
+  font-size: 0.8rem;
+  color: #888;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+/* Estados de las columnas */
+.kanban-column:nth-child(1) h4 {
+  color: #f44336;
+}
+
+.kanban-column:nth-child(2) h4 {
+  color: #2196F3;
+}
+
+.kanban-column:nth-child(3) h4 {
+  color: #4CAF50;
+}
+
+/* Estilos para mensajes de estado */
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.error {
+  color: #f44336;
+  padding: 20px;
+  text-align: center;
+  background: #ffebee;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+.success {
+  color: #4CAF50;
+  padding: 20px;
+  text-align: center;
+  background: #e8f5e9;
+  border-radius: 4px;
+  margin: 20px 0;
+} 
