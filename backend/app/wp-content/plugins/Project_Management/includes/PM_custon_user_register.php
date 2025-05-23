@@ -20,6 +20,17 @@ add_action('rest_api_init', function () {
     ));
 });
 
+// Añadir endpoint personalizado para obtener usuarios project_user
+add_action('rest_api_init', function () {
+    register_rest_route('pm/v1', '/users', array(
+        'methods' => 'GET',
+        'callback' => 'get_project_users',
+        'permission_callback' => function() {
+            return current_user_can('edit_posts') || current_user_can('view_project_users');
+        }
+    ));
+});
+
 // Función para registrar roles personalizados
 function PM_register_custom_roles() {
     global $wp_roles;
@@ -143,7 +154,10 @@ function PM_register_custom_roles() {
                 'delete_users' => true,
                 'promote_users' => true,
                 'remove_users' => true,
-                'add_users' => true
+                'add_users' => true,
+                'view_project_users' => true,
+                'read_private_users' => true,
+                'edit_private_users' => true
             )
         ),
         'project_user' => array(
@@ -461,4 +475,21 @@ function change_user_password($request) {
     update_user_meta($user_id, 'first_login', false);
 
     return array('success' => true, 'message' => 'Contraseña actualizada exitosamente.');
+}
+
+// Función para obtener usuarios project_user
+function get_project_users() {
+    $users = get_users(array('role' => 'project_user'));
+    $formatted_users = array();
+    
+    foreach ($users as $user) {
+        $formatted_users[] = array(
+            'id' => $user->ID,
+            'name' => $user->display_name,
+            'email' => $user->user_email,
+            'roles' => $user->roles
+        );
+    }
+    
+    return rest_ensure_response($formatted_users);
 }

@@ -131,7 +131,17 @@ function PM_register_project_meta() {
                         ),
                         'estado' => array(
                             'type' => 'string',
-                            'enum' => array('pendiente', 'en progreso', 'completada'),
+                            'enum' => array('pendiente', 'en_progreso', 'completada'),
+                        ),
+                        'descripcion' => array(
+                            'type' => 'string',
+                        ),
+                        'prioridad' => array(
+                            'type' => 'string',
+                            'enum' => array('baja', 'media', 'alta'),
+                        ),
+                        'asignado' => array(
+                            'type' => 'string',
                         ),
                     ),
                 ),
@@ -168,10 +178,15 @@ function PM_sanitize_tareas($meta_value, $meta_key, $object_type) {
     
     return array_map(function($tarea) {
         return array(
-            'nombre' => sanitize_text_field($tarea['nombre']),
-            'estado' => in_array($tarea['estado'], array('pendiente', 'en progreso', 'completada')) 
-                ? $tarea['estado'] 
-                : 'pendiente'
+            'nombre' => isset($tarea['nombre']) ? sanitize_text_field($tarea['nombre']) : '',
+            'estado' => (isset($tarea['estado']) && in_array($tarea['estado'], array('pendiente', 'en_progreso', 'completada')))
+                ? $tarea['estado']
+                : 'pendiente',
+            'descripcion' => isset($tarea['descripcion']) ? sanitize_text_field($tarea['descripcion']) : '',
+            'prioridad' => (isset($tarea['prioridad']) && in_array($tarea['prioridad'], array('baja', 'media', 'alta')))
+                ? $tarea['prioridad']
+                : 'media',
+            'asignado' => isset($tarea['asignado']) ? sanitize_text_field($tarea['asignado']) : '',
         );
     }, $meta_value);
 }

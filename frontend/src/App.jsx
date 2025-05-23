@@ -12,6 +12,8 @@ import AdminDashboard from "./components/AdminDashboard";
 import ChangePassword from "./components/ChangePassword";
 import "./App.css";
 import { AuthProvider } from "./context/AuthContext";
+import ProjectDashboard from './components/ProjectDashboard';
+import UserDashboard from './components/UserDashboard';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -90,6 +92,33 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['super_administrador', 'project_admin', 'project_user']}>
                   <ChangePassword />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['super_administrador']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/project-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin']}>
+                  <ProjectDashboard />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/user-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin']}>
+                  <UserDashboard />
                 </ProtectedRoute>
               }
             />
