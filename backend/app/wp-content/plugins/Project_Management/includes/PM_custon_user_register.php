@@ -22,105 +22,140 @@ add_action('rest_api_init', function () {
 
 // Función para registrar roles personalizados
 function PM_register_custom_roles() {
+    global $wp_roles;
+
+    // Asegurarse de que $wp_roles esté inicializado
+    if (!isset($wp_roles)) {
+        $wp_roles = new WP_Roles();
+    }
+
     // Eliminar roles existentes si existen
+    remove_role('super_administrador');
     remove_role('project_admin');
     remove_role('project_user');
 
-    // Añadir rol de administrador de proyecto con todas las capacidades
-    add_role('project_admin', 'Administrador de Proyecto', array(
-        'read' => true,
-        'edit_posts' => true,
-        'delete_posts' => true,
-        'publish_posts' => true,
-        'upload_files' => true,
-        'edit_published_posts' => true,
-        'delete_published_posts' => true,
-        'edit_others_posts' => true,
-        'delete_others_posts' => true,
-        'read_private_posts' => true,
-        'edit_private_posts' => true,
-        'delete_private_posts' => true,
-        'edit_proyectos' => true,
-        'edit_others_proyectos' => true,
-        'publish_proyectos' => true,
-        'read_private_proyectos' => true,
-        'delete_proyectos' => true,
-        'delete_others_proyectos' => true,
-        'delete_published_proyectos' => true,
-        'delete_private_proyectos' => true,
-        'edit_published_proyectos' => true,
-        'edit_private_proyectos' => true,
-        'read_proyectos' => true,
-        'manage_options' => true,
-        'list_users' => true,
-        'edit_users' => true,
-        'create_users' => true,
-        'delete_users' => true,
-        'promote_users' => true,
-        'remove_users' => true,
-        'add_users' => true
-    ));
+    // Registrar los roles personalizados
+    $roles = array(
+        'super_administrador' => array(
+            'name' => 'Super Administrador',
+            'capabilities' => array(
+                'read' => true,
+                'edit_posts' => true,
+                'delete_posts' => true,
+                'publish_posts' => true,
+                'upload_files' => true,
+                'edit_published_posts' => true,
+                'delete_published_posts' => true,
+                'edit_others_posts' => true,
+                'delete_others_posts' => true,
+                'read_private_posts' => true,
+                'edit_private_posts' => true,
+                'delete_private_posts' => true,
+                'edit_proyectos' => true,
+                'edit_others_proyectos' => true,
+                'publish_proyectos' => true,
+                'read_private_proyectos' => true,
+                'delete_proyectos' => true,
+                'delete_others_proyectos' => true,
+                'delete_published_proyectos' => true,
+                'delete_private_proyectos' => true,
+                'edit_published_proyectos' => true,
+                'edit_private_proyectos' => true,
+                'read_proyectos' => true,
+                'manage_options' => true,
+                'list_users' => true,
+                'edit_users' => true,
+                'create_users' => true,
+                'delete_users' => true,
+                'promote_users' => true,
+                'remove_users' => true,
+                'add_users' => true
+            )
+        ),
+        'project_admin' => array(
+            'name' => 'Administrador de Proyecto',
+            'capabilities' => array(
+                'read' => true,
+                'edit_posts' => true,
+                'delete_posts' => true,
+                'publish_posts' => true,
+                'upload_files' => true,
+                'edit_published_posts' => true,
+                'delete_published_posts' => true,
+                'edit_others_posts' => true,
+                'delete_others_posts' => true,
+                'read_private_posts' => true,
+                'edit_private_posts' => true,
+                'delete_private_posts' => true,
+                'edit_proyectos' => true,
+                'edit_others_proyectos' => true,
+                'publish_proyectos' => true,
+                'read_private_proyectos' => true,
+                'delete_proyectos' => true,
+                'delete_others_proyectos' => true,
+                'delete_published_proyectos' => true,
+                'delete_private_proyectos' => true,
+                'edit_published_proyectos' => true,
+                'edit_private_proyectos' => true,
+                'read_proyectos' => true,
+                'manage_options' => true,
+                'list_users' => true,
+                'edit_users' => true,
+                'create_users' => true,
+                'delete_users' => true,
+                'promote_users' => true,
+                'remove_users' => true,
+                'add_users' => true
+            )
+        ),
+        'project_user' => array(
+            'name' => 'Usuario de Proyecto',
+            'capabilities' => array(
+                'read' => true,
+                'edit_posts' => true,
+                'delete_posts' => true,
+                'publish_posts' => true,
+                'upload_files' => true,
+                'edit_published_posts' => true,
+                'delete_published_posts' => true,
+                'edit_proyectos' => true,
+                'publish_proyectos' => true,
+                'read_private_proyectos' => true,
+                'delete_proyectos' => true,
+                'delete_published_proyectos' => true,
+                'edit_published_proyectos' => true,
+                'read_proyectos' => true
+            )
+        )
+    );
 
-    // Añadir rol de usuario de proyecto con capacidades básicas
-    add_role('project_user', 'Usuario de Proyecto', array(
-        'read' => true,
-        'edit_posts' => true,
-        'delete_posts' => true,
-        'publish_posts' => true,
-        'upload_files' => true,
-        'edit_published_posts' => true,
-        'delete_published_posts' => true,
-        'edit_proyectos' => true,
-        'publish_proyectos' => true,
-        'read_private_proyectos' => true,
-        'delete_proyectos' => true,
-        'delete_published_proyectos' => true,
-        'edit_published_proyectos' => true,
-        'read_proyectos' => true
-    ));
+    foreach ($roles as $role_key => $role_data) {
+        // Asegurarse de que el rol no exista antes de crearlo
+        if (!get_role($role_key)) {
+            add_role($role_key, $role_data['name'], $role_data['capabilities']);
+            error_log('Rol registrado: ' . $role_key);
+        }
+    }
 
     // Asegurar que el administrador tenga todas las capacidades
     $admin_role = get_role('administrator');
     if ($admin_role) {
-        $admin_role->add_cap('read');
-        $admin_role->add_cap('edit_posts');
-        $admin_role->add_cap('delete_posts');
-        $admin_role->add_cap('publish_posts');
-        $admin_role->add_cap('upload_files');
-        $admin_role->add_cap('edit_published_posts');
-        $admin_role->add_cap('delete_published_posts');
-        $admin_role->add_cap('edit_others_posts');
-        $admin_role->add_cap('delete_others_posts');
-        $admin_role->add_cap('read_private_posts');
-        $admin_role->add_cap('edit_private_posts');
-        $admin_role->add_cap('delete_private_posts');
-        $admin_role->add_cap('edit_proyectos');
-        $admin_role->add_cap('edit_others_proyectos');
-        $admin_role->add_cap('publish_proyectos');
-        $admin_role->add_cap('read_private_proyectos');
-        $admin_role->add_cap('delete_proyectos');
-        $admin_role->add_cap('delete_others_proyectos');
-        $admin_role->add_cap('delete_published_proyectos');
-        $admin_role->add_cap('delete_private_proyectos');
-        $admin_role->add_cap('edit_published_proyectos');
-        $admin_role->add_cap('edit_private_proyectos');
-        $admin_role->add_cap('read_proyectos');
-        $admin_role->add_cap('manage_options');
-        $admin_role->add_cap('list_users');
-        $admin_role->add_cap('edit_users');
-        $admin_role->add_cap('create_users');
-        $admin_role->add_cap('delete_users');
-        $admin_role->add_cap('promote_users');
-        $admin_role->add_cap('remove_users');
-        $admin_role->add_cap('add_users');
+        foreach ($roles['super_administrador']['capabilities'] as $cap => $grant) {
+            $admin_role->add_cap($cap);
+        }
+        error_log('Capacidades añadidas al rol administrador');
     }
 }
+
+// Añadir un filtro para asegurar que los roles se registren al cargar WordPress
+add_action('init', 'PM_register_custom_roles', 0);
 
 // Registrar el hook para la activación del plugin
 register_activation_hook(PM_PLUGIN_DIR . '../Project_Management.php', 'PM_register_custom_roles');
 
 // Función para limpiar roles al desactivar el plugin
 function PM_remove_custom_roles() {
+    remove_role('super_administrador');
     remove_role('project_admin');
     remove_role('project_user');
 }
@@ -128,56 +163,231 @@ function PM_remove_custom_roles() {
 // Registrar el hook para la desactivación del plugin
 register_deactivation_hook(PM_PLUGIN_DIR . '../Project_Management.php', 'PM_remove_custom_roles');
 
-function custom_user_registration($request) {
-    $username = sanitize_text_field($request['username']);
-    $password = sanitize_text_field($request['password']);
-    $email = sanitize_email($request['email']);
-    $role = sanitize_text_field($request['role']);
-    $first_name = sanitize_text_field($request['first_name']);
-    $last_name = sanitize_text_field($request['last_name']);
+// Añadir los roles a la lista de roles disponibles
+add_filter('editable_roles', function($roles) {
+    $custom_roles = array(
+        'super_administrador' => array(
+            'name' => 'Super Administrador',
+            'capabilities' => array(
+                'read' => true,
+                'edit_posts' => true,
+                'delete_posts' => true,
+                'publish_posts' => true,
+                'upload_files' => true,
+                'edit_published_posts' => true,
+                'delete_published_posts' => true,
+                'edit_others_posts' => true,
+                'delete_others_posts' => true,
+                'read_private_posts' => true,
+                'edit_private_posts' => true,
+                'delete_private_posts' => true,
+                'edit_proyectos' => true,
+                'edit_others_proyectos' => true,
+                'publish_proyectos' => true,
+                'read_private_proyectos' => true,
+                'delete_proyectos' => true,
+                'delete_others_proyectos' => true,
+                'delete_published_proyectos' => true,
+                'delete_private_proyectos' => true,
+                'edit_published_proyectos' => true,
+                'edit_private_proyectos' => true,
+                'read_proyectos' => true,
+                'manage_options' => true,
+                'list_users' => true,
+                'edit_users' => true,
+                'create_users' => true,
+                'delete_users' => true,
+                'promote_users' => true,
+                'remove_users' => true,
+                'add_users' => true
+            )
+        ),
+        'project_admin' => array(
+            'name' => 'Administrador de Proyecto',
+            'capabilities' => array(
+                'read' => true,
+                'edit_posts' => true,
+                'delete_posts' => true,
+                'publish_posts' => true,
+                'upload_files' => true,
+                'edit_published_posts' => true,
+                'delete_published_posts' => true,
+                'edit_others_posts' => true,
+                'delete_others_posts' => true,
+                'read_private_posts' => true,
+                'edit_private_posts' => true,
+                'delete_private_posts' => true,
+                'edit_proyectos' => true,
+                'edit_others_proyectos' => true,
+                'publish_proyectos' => true,
+                'read_private_proyectos' => true,
+                'delete_proyectos' => true,
+                'delete_others_proyectos' => true,
+                'delete_published_proyectos' => true,
+                'delete_private_proyectos' => true,
+                'edit_published_proyectos' => true,
+                'edit_private_proyectos' => true,
+                'read_proyectos' => true,
+                'manage_options' => true,
+                'list_users' => true,
+                'edit_users' => true,
+                'create_users' => true,
+                'delete_users' => true,
+                'promote_users' => true,
+                'remove_users' => true,
+                'add_users' => true
+            )
+        ),
+        'project_user' => array(
+            'name' => 'Usuario de Proyecto',
+            'capabilities' => array(
+                'read' => true,
+                'edit_posts' => true,
+                'delete_posts' => true,
+                'publish_posts' => true,
+                'upload_files' => true,
+                'edit_published_posts' => true,
+                'delete_published_posts' => true,
+                'edit_proyectos' => true,
+                'publish_proyectos' => true,
+                'read_private_proyectos' => true,
+                'delete_proyectos' => true,
+                'delete_published_proyectos' => true,
+                'edit_published_proyectos' => true,
+                'read_proyectos' => true
+            )
+        )
+    );
 
-    // Lista de roles permitidos
-    $allowed_roles = array('project_user', 'project_admin');
-
-    if (!in_array($role, $allowed_roles)) {
-        return new WP_Error('invalid_role', 'El rol proporcionado no es válido.', array('status' => 400));
+    foreach ($custom_roles as $role_key => $role_data) {
+        if (!isset($roles[$role_key])) {
+            $roles[$role_key] = $role_data;
+        }
     }
 
-    if (username_exists($username)) {
-        return new WP_Error('user_exists', 'El nombre de usuario ya está en uso.', array('status' => 400));
-    }
+    return $roles;
+});
 
-    $user_id = wp_create_user($username, $password, $email);
+// Añadir el campo first_login a los usuarios
+add_action('user_register', function($user_id) {
+    update_user_meta($user_id, 'first_login', true);
+});
 
-    if (is_wp_error($user_id)) {
-        return new WP_Error('registration_failed', 'Error al registrar el usuario.', array('status' => 500));
-    }
-
-    // Asignar rol al usuario
-    $user = new WP_User($user_id);
-    $user->set_role($role);
-
-    // Actualizar meta datos del usuario
-    if (!empty($first_name)) {
-        update_user_meta($user_id, 'first_name', $first_name);
-    }
-    if (!empty($last_name)) {
-        update_user_meta($user_id, 'last_name', $last_name);
-    }
-
-    return array('success' => true, 'message' => 'Usuario registrado exitosamente.');
-}
-
-// Añadir los roles del usuario a la respuesta del endpoint /users/me
-add_filter('rest_prepare_user', function ($response, $user, $request) {
-    $response->data['roles'] = $user->roles; // Añadir roles a la respuesta
+// Añadir el campo first_login a la respuesta de la API
+add_filter('rest_prepare_user', function($response, $user, $request) {
+    $first_login = get_user_meta($user->ID, 'first_login', true);
+    $response->data['meta'] = array(
+        'first_login' => $first_login
+    );
     return $response;
 }, 10, 3);
 
-// Añadir los roles del usuario a la respuesta del token
+// Prevenir la asignación del rol 'subscriber' por defecto
+add_filter('user_register', function($user_id) {
+    $user = new WP_User($user_id);
+    if (in_array('subscriber', $user->roles)) {
+        $user->remove_role('subscriber');
+    }
+});
+
+// Modificar la función de registro de usuarios
+function custom_user_registration($request) {
+    $username = $request->get_param('username');
+    $email = $request->get_param('email');
+    $password = $request->get_param('password');
+    $role = $request->get_param('role');
+
+    // Validar que el rol sea uno de los permitidos
+    $allowed_roles = array('super_administrador', 'project_admin', 'project_user');
+    if (!in_array($role, $allowed_roles)) {
+        return new WP_Error('invalid_role', 'Rol no válido', array('status' => 400));
+    }
+
+    // Verificar si el usuario actual tiene permisos para crear usuarios
+    $current_user = wp_get_current_user();
+    if (!in_array('super_administrador', $current_user->roles)) {
+        return new WP_Error('insufficient_permissions', 'No tienes permisos para crear usuarios', array('status' => 403));
+    }
+
+    // Verificar si el usuario ya existe
+    if (username_exists($username) || email_exists($email)) {
+        return new WP_Error('user_exists', 'El usuario o email ya existe', array('status' => 400));
+    }
+
+    // Crear el usuario sin rol específico primero
+    $user_id = wp_create_user($username, $password, $email);
+    
+    if (is_wp_error($user_id)) {
+        return $user_id;
+    }
+
+    // Obtener el usuario
+    $user = new WP_User($user_id);
+    
+    // Eliminar todos los roles existentes
+    $user->set_role('');
+    
+    // Obtener el objeto del rol
+    $role_obj = get_role($role);
+    if (!$role_obj) {
+        // Si el rol no existe, intentar registrarlo nuevamente
+        PM_register_custom_roles();
+        $role_obj = get_role($role);
+    }
+
+    if ($role_obj) {
+        // Asignar todas las capacidades del rol al usuario
+        foreach ($role_obj->capabilities as $cap => $grant) {
+            $user->add_cap($cap, $grant);
+        }
+        
+        // Asignar el rol específico
+        $user->add_role($role);
+        
+        // Verificar que el rol se haya asignado correctamente
+        if (!in_array($role, $user->roles)) {
+            // Si aún no se asignó, intentar asignarlo directamente
+            $user->set_role($role);
+        }
+    } else {
+        // Si no se pudo obtener el rol, eliminar el usuario y devolver error
+        wp_delete_user($user_id);
+        return new WP_Error('role_error', 'No se pudo asignar el rol al usuario', array('status' => 500));
+    }
+
+    // Establecer first_login como true
+    update_user_meta($user_id, 'first_login', true);
+
+    // Obtener el usuario creado con sus datos actualizados
+    $user_data = get_userdata($user_id);
+    
+    // Registrar en el log para depuración
+    error_log('Usuario creado: ' . $username . ' con rol: ' . $role);
+    error_log('Roles asignados: ' . print_r($user_data->roles, true));
+    error_log('Capacidades asignadas: ' . print_r($user_data->allcaps, true));
+    
+    return array(
+        'id' => $user_id,
+        'username' => $user_data->user_login,
+        'email' => $user_data->user_email,
+        'roles' => $user_data->roles,
+        'capabilities' => $user_data->allcaps,
+        'first_login' => true
+    );
+}
+
+// Añadir las capacidades del usuario a la respuesta de la API
+add_filter('rest_prepare_user', function ($response, $user, $request) {
+    $response->data['roles'] = $user->roles;
+    $response->data['capabilities'] = $user->allcaps;
+    return $response;
+}, 10, 3);
+
+// Añadir las capacidades del usuario a la respuesta del token
 add_filter('jwt_auth_token_before_dispatch', function ($data, $user) {
     $user_data = get_userdata($user->ID);
-    $data['roles'] = $user_data->roles; // Añadir roles a la respuesta del token
+    $data['roles'] = $user_data->roles;
+    $data['capabilities'] = $user_data->allcaps;
     return $data;
 }, 10, 2);
 
@@ -187,3 +397,30 @@ add_filter('rest_user_query', function ($args, $request) {
     $args['has_published_posts'] = false;
     return $args;
 }, 10, 2);
+
+// Añadir endpoint para cambiar la contraseña
+add_action('rest_api_init', function () {
+    register_rest_route('jwt-auth/v1', '/change-password', array(
+        'methods' => 'POST',
+        'callback' => 'change_user_password',
+        'permission_callback' => function() {
+            return is_user_logged_in();
+        }
+    ));
+});
+
+function change_user_password($request) {
+    $user_id = get_current_user_id();
+    $current_password = $request['current_password'];
+    $new_password = $request['new_password'];
+
+    $user = get_user_by('id', $user_id);
+    if (!$user || !wp_check_password($current_password, $user->data->user_pass, $user_id)) {
+        return new WP_Error('invalid_password', 'La contraseña actual es incorrecta.', array('status' => 400));
+    }
+
+    wp_set_password($new_password, $user_id);
+    update_user_meta($user_id, 'first_login', false);
+
+    return array('success' => true, 'message' => 'Contraseña actualizada exitosamente.');
+}

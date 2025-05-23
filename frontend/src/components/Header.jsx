@@ -1,68 +1,71 @@
-import React, { useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
-import LogoWebSVG from "../assets/LogoWebSVG.svg"; // Importar el logo
+import { LOCAL_URL_API } from "../constants/constans";
+import "../styles/Header.css";
 
 const Header = () => {
-  const { isAuthenticated, userName, userRole, logout } = useContext(AuthContext);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState("");
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const token = localStorage.getItem("jwtToken");
+    if (token) {
+      setIsLoggedIn(true);
+      fetchUserInfo(token);
+    }
+  }, []);
+
+  const fetchUserInfo = async (token) => {
+    try {
+      const response = await fetch(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUserName(userData.name);
+      }
+    } catch (error) {
+      console.error("Error al obtener información del usuario:", error);
+    }
+  };
+
   const handleLogout = () => {
-    logout(); // Llamar a la función de logout del contexto
-    navigate("/"); // Redirigir a la pantalla de inicio
+    localStorage.removeItem("jwtToken");
+    setIsLoggedIn(false);
+    setUserName("");
+    navigate("/login");
   };
 
   return (
-    <header style={{ display: "flex", alignItems: "center", padding: "1rem", background: "#f1f1f1" }}>
-      <img src={LogoWebSVG} alt="Logo" style={{ width: "50px", height: "50px", marginRight: "1rem" }} />
-      <nav>
-        <ul style={{ display: "flex", listStyle: "none", gap: "1rem", margin: 0 }}>
-          <li>
-            <Link to="/">Inicio</Link>
-          </li>
-          {!isAuthenticated && (
+    <header className="header">
+      <div className="header-container">
+        <div className="logo">
+          <Link to="/">Inn Project Management</Link>
+        </div>
+        <nav className="nav-menu">
+          {!isLoggedIn ? (
             <>
-              <li>
-                <Link to="/register">Registro</Link>
-              </li>
+              <Link to="/" className="nav-link">Inicio</Link>
+              <Link to="/login" className="nav-link">Iniciar Sesión</Link>
+              <Link to="/register" className="nav-link">Registrarse</Link>
             </>
-          )}
-          {isAuthenticated && userRole === "project_admin" && (
-            <li>
-              <Link to="/admin">Administrar</Link>
-            </li>
-          )}
-          {isAuthenticated && userRole === "project_user" && (
-            <li>
-              <Link to="/admin">AdminUser</Link>
-            </li>
-          )}
-          {isAuthenticated && (
+          ) : (
             <>
-              <li>
-                <Link to="/dashboard">Dashboard</Link>
-              </li>
-              <li>
-                <Link to="/profile">
-                  {userName && userRole && (
-                    <>
-                      <strong>{userName}</strong> ({userRole})
-                    </>
-                  )}
-                </Link>
-              </li>
-              <li>
-                <button
-                  onClick={handleLogout}
-                  style={{ background: "none", border: "none", color: "blue", cursor: "pointer" }}
-                >
-                  Cerrar sesión
+              <Link to="/dashboard" className="nav-link">Dashboard</Link>
+              <div className="user-menu">
+                <span className="user-name">Hola, {userName}</span>
+                <button onClick={handleLogout} className="logout-button">
+                  Cerrar Sesión
                 </button>
-              </li>
+              </div>
             </>
           )}
-        </ul>
-      </nav>
+        </nav>
+      </div>
     </header>
   );
 };
