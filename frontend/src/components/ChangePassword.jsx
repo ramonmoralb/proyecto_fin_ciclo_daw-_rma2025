@@ -4,18 +4,18 @@ import { LOCAL_URL_API } from '../constants/constans';
 import '../styles/ChangePassword.css';
 
 const ChangePassword = () => {
-    const navigate = useNavigate();
-    const [passwords, setPasswords] = useState({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+    const [formData, setFormData] = useState({
+        current_password: '',
+        new_password: '',
+        confirm_password: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const handleChange = (e) => {
-        setPasswords({
-            ...passwords,
+        setFormData({
+            ...formData,
             [e.target.name]: e.target.value
         });
     };
@@ -25,54 +25,48 @@ const ChangePassword = () => {
         setError('');
         setLoading(true);
 
-        if (passwords.newPassword !== passwords.confirmPassword) {
+        // Validar que las contraseñas coincidan
+        if (formData.new_password !== formData.confirm_password) {
             setError('Las contraseñas no coinciden');
-            setLoading(false);
-            return;
-        }
-
-        if (passwords.newPassword.length < 8) {
-            setError('La contraseña debe tener al menos 8 caracteres');
             setLoading(false);
             return;
         }
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${LOCAL_URL_API}/wp-json/wp/v2/users/me`, {
+            const response = await fetch(`${LOCAL_URL_API}/wp-json/jwt-auth/v1/change-password`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    password: passwords.newPassword,
-                    first_login: false
+                    current_password: formData.current_password,
+                    new_password: formData.new_password
                 })
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                throw new Error('Error al cambiar la contraseña');
+                throw new Error(data.message || 'Error al cambiar la contraseña');
             }
 
-            // Redirigir al dashboard según el rol del usuario
-            const userResponse = await fetch(`${LOCAL_URL_API}/wp-json/wp/v2/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const userData = await userResponse.json();
-            
-            if (userData.roles.includes('super_administrador')) {
+            // Obtener el rol del usuario del token
+            const userData = JSON.parse(atob(token.split('.')[1]));
+            const userRole = userData.roles[0]; // Asumimos que el usuario tiene un solo rol
+
+            // Redirigir según el rol
+            if (userRole === 'super_administrador') {
                 navigate('/admin-dashboard');
-            } else if (userData.roles.includes('project_admin')) {
+            } else if (userRole === 'project_admin') {
                 navigate('/dashboard');
             } else {
                 navigate('/dashboard');
             }
-        } catch (error) {
-            setError('Error al cambiar la contraseña. Por favor, inténtalo de nuevo.');
-            console.error('Error changing password:', error);
+
+        } catch (err) {
+            setError(err.message);
         } finally {
             setLoading(false);
         }
@@ -82,54 +76,48 @@ const ChangePassword = () => {
         <div className="change-password-container">
             <div className="change-password-card">
                 <h2>Cambiar Contraseña</h2>
-                <p className="change-password-message">
-                    Por seguridad, debes cambiar tu contraseña en tu primer inicio de sesión.
-                </p>
-
+                <p>Por favor, cambia tu contraseña para continuar.</p>
+                
                 {error && <div className="error-message">{error}</div>}
-
-                <form onSubmit={handleSubmit} className="change-password-form">
+                
+                <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Contraseña Actual:</label>
+                        <label htmlFor="current_password">Contraseña Actual</label>
                         <input
                             type="password"
-                            name="currentPassword"
-                            value={passwords.currentPassword}
+                            id="current_password"
+                            name="current_password"
+                            value={formData.current_password}
                             onChange={handleChange}
                             required
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Nueva Contraseña:</label>
+                        <label htmlFor="new_password">Nueva Contraseña</label>
                         <input
                             type="password"
-                            name="newPassword"
-                            value={passwords.newPassword}
+                            id="new_password"
+                            name="new_password"
+                            value={formData.new_password}
                             onChange={handleChange}
                             required
-                            minLength="8"
                         />
-                        <small>La contraseña debe tener al menos 8 caracteres</small>
                     </div>
 
                     <div className="form-group">
-                        <label>Confirmar Nueva Contraseña:</label>
+                        <label htmlFor="confirm_password">Confirmar Nueva Contraseña</label>
                         <input
                             type="password"
-                            name="confirmPassword"
-                            value={passwords.confirmPassword}
+                            id="confirm_password"
+                            name="confirm_password"
+                            value={formData.confirm_password}
                             onChange={handleChange}
                             required
-                            minLength="8"
                         />
                     </div>
 
-                    <button 
-                        type="submit" 
-                        className="btn-change-password"
-                        disabled={loading}
-                    >
+                    <button type="submit" className="btn-save" disabled={loading}>
                         {loading ? 'Cambiando...' : 'Cambiar Contraseña'}
                     </button>
                 </form>

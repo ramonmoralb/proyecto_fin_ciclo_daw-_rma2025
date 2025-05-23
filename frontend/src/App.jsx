@@ -43,7 +43,7 @@ function App() {
             <Route
               path="/admin-dashboard"
               element={
-                <ProtectedRoute allowedRoles={['super_admin']}>
+                <ProtectedRoute allowedRoles={['super_administrador']}>
                   <AdminDashboard />
                 </ProtectedRoute>
               }
@@ -52,7 +52,7 @@ function App() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['super_admin', 'project_admin', 'project_user']}>
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin', 'project_user']}>
                   <Dashboard />
                 </ProtectedRoute>
               }
@@ -61,7 +61,7 @@ function App() {
             <Route
               path="/proyecto/:id"
               element={
-                <ProtectedRoute allowedRoles={['super_admin', 'project_admin', 'project_user']}>
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin', 'project_user']}>
                   <Proyecto />
                 </ProtectedRoute>
               }
@@ -70,7 +70,7 @@ function App() {
             <Route
               path="/crear-proyecto"
               element={
-                <ProtectedRoute allowedRoles={['super_admin', 'project_admin']}>
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin']}>
                   <CrearProyecto />
                 </ProtectedRoute>
               }
@@ -79,7 +79,7 @@ function App() {
             <Route
               path="/editar-proyecto/:id"
               element={
-                <ProtectedRoute allowedRoles={['super_admin', 'project_admin']}>
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin']}>
                   <EditarProyecto />
                 </ProtectedRoute>
               }
@@ -88,7 +88,7 @@ function App() {
             <Route
               path="/change-password"
               element={
-                <ProtectedRoute allowedRoles={['super_admin', 'project_admin', 'project_user']}>
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin', 'project_user']}>
                   <ChangePassword />
                 </ProtectedRoute>
               }

@@ -1,8 +1,8 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { LOCAL_URL_API } from "../constants/constans";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import "../styles/Auth.css";
 
 const LoginForm = () => {
@@ -10,7 +10,7 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useContext(AuthContext);
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -31,7 +31,7 @@ const LoginForm = () => {
 
       if (token) {
         // Verificar que el usuario tenga uno de los roles permitidos
-        const allowedRoles = ['super_admin', 'project_admin', 'project_user'];
+        const allowedRoles = ['super_administrador', 'project_admin', 'project_user'];
         const userRole = roles.find(role => allowedRoles.includes(role));
 
         if (!userRole) {
@@ -44,18 +44,29 @@ const LoginForm = () => {
         localStorage.setItem("userEmail", user_email);
         localStorage.setItem("userName", user_nicename);
 
-        login(user_email, userRole);
+        login(user_email, userRole, user_nicename);
         
         setMessage("Inicio de sesión exitoso. Redirigiendo...");
         
         // Redirigir según el rol
         setTimeout(() => {
-          if (userRole === 'super_admin') {
+          if (userRole === 'super_administrador') {
             navigate("/admin-dashboard");
+          } else if (userRole === 'project_admin') {
+            navigate("/project-dashboard");
           } else {
-            navigate("/dashboard");
+            navigate("/user-dashboard");
           }
         }, 1500);
+
+        // Log detallado de la respuesta
+        console.log('=== DEBUG LOGIN RESPONSE ===');
+        console.log('Token:', token);
+        console.log('User Email:', user_email);
+        console.log('User Name:', user_nicename);
+        console.log('Roles:', roles);
+        console.log('Selected Role:', userRole);
+        console.log('========================');
       }
     } catch (error) {
       console.error("Error al iniciar sesión:", error);

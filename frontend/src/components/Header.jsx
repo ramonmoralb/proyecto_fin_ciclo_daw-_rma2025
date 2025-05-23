@@ -1,42 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LOCAL_URL_API } from "../constants/constans";
+import { useAuth } from "../context/AuthContext";
 import "../styles/Header.css";
 
 const Header = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("");
+  const { isAuthenticated, userRole, userName, logout } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const token = localStorage.getItem("jwtToken");
-    if (token) {
-      setIsLoggedIn(true);
-      fetchUserInfo(token);
-    }
-  }, []);
-
-  const fetchUserInfo = async (token) => {
-    try {
-      const response = await fetch(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUserName(userData.name);
-      }
-    } catch (error) {
-      console.error("Error al obtener información del usuario:", error);
-    }
-  };
-
   const handleLogout = () => {
-    localStorage.removeItem("jwtToken");
-    setIsLoggedIn(false);
-    setUserName("");
+    logout();
     navigate("/login");
   };
 
@@ -47,17 +19,26 @@ const Header = () => {
           <Link to="/">Inn Project Management</Link>
         </div>
         <nav className="nav-menu">
-          {!isLoggedIn ? (
+          {!isAuthenticated ? (
             <>
               <Link to="/" className="nav-link">Inicio</Link>
               <Link to="/login" className="nav-link">Iniciar Sesión</Link>
-              <Link to="/register" className="nav-link">Registrarse</Link>
             </>
           ) : (
             <>
-              <Link to="/dashboard" className="nav-link">Dashboard</Link>
+              {userRole === 'super_administrador' && (
+                <Link to="/admin-dashboard" className="nav-link">Panel de Administración</Link>
+              )}
+              {userRole === 'project_admin' && (
+                <Link to="/project-dashboard" className="nav-link">Panel de Proyectos</Link>
+              )}
+              {userRole === 'project_user' && (
+                <Link to="/user-dashboard" className="nav-link">Mis Proyectos</Link>
+              )}
               <div className="user-menu">
                 <span className="user-name">Hola, {userName}</span>
+                <span className="user-role">({userRole === 'super_administrador' ? 'Super Administrador' : 
+                  userRole === 'project_admin' ? 'Administrador de Proyectos' : 'Usuario de Proyectos'})</span>
                 <button onClick={handleLogout} className="logout-button">
                   Cerrar Sesión
                 </button>
