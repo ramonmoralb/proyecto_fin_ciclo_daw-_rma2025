@@ -20,65 +20,113 @@ add_action('rest_api_init', function () {
     ));
 });
 
-// Función para registrar los roles personalizados.
+// Función para registrar roles personalizados
 function PM_register_custom_roles() {
-    // Rol para el administrador del proyecto
-    add_role(
-        'project_admin',
-        __('Administrador de Proyectos', 'project-management'),
-        array(
-            'read' => true,
-            'edit_posts' => true,
-            'delete_posts' => true,
-            'manage_categories' => true,
-            'edit_others_posts' => true,
-            'publish_posts' => true,
-            'edit_proyectos' => true,
-            'edit_published_proyectos' => true,
-            'publish_proyectos' => true,
-            'delete_proyectos' => true,
-            'delete_published_proyectos' => true,
-            'edit_others_proyectos' => true,
-            'delete_others_proyectos' => true,
-        )
-    );
+    // Eliminar roles existentes si existen
+    remove_role('project_admin');
+    remove_role('project_user');
 
-    // Rol para los usuarios de proyectos
-    add_role(
-        'project_user',
-        __('Usuario de Proyectos', 'project-management'),
-        array(
-            'read' => true,
-            'edit_posts' => true,
-            'delete_posts' => false,
-            'edit_proyectos' => true,
-            'edit_published_proyectos' => true,
-            'publish_proyectos' => true,
-        )
-    );
-}
-add_action('init', 'PM_register_custom_roles');
+    // Añadir rol de administrador de proyecto con todas las capacidades
+    add_role('project_admin', 'Administrador de Proyecto', array(
+        'read' => true,
+        'edit_posts' => true,
+        'delete_posts' => true,
+        'publish_posts' => true,
+        'upload_files' => true,
+        'edit_published_posts' => true,
+        'delete_published_posts' => true,
+        'edit_others_posts' => true,
+        'delete_others_posts' => true,
+        'read_private_posts' => true,
+        'edit_private_posts' => true,
+        'delete_private_posts' => true,
+        'edit_proyectos' => true,
+        'edit_others_proyectos' => true,
+        'publish_proyectos' => true,
+        'read_private_proyectos' => true,
+        'delete_proyectos' => true,
+        'delete_others_proyectos' => true,
+        'delete_published_proyectos' => true,
+        'delete_private_proyectos' => true,
+        'edit_published_proyectos' => true,
+        'edit_private_proyectos' => true,
+        'read_proyectos' => true,
+        'manage_options' => true,
+        'list_users' => true,
+        'edit_users' => true,
+        'create_users' => true,
+        'delete_users' => true,
+        'promote_users' => true,
+        'remove_users' => true,
+        'add_users' => true
+    ));
 
-function PM_update_role_capabilities() {
-    $admin_role = get_role('project_admin');
+    // Añadir rol de usuario de proyecto con capacidades básicas
+    add_role('project_user', 'Usuario de Proyecto', array(
+        'read' => true,
+        'edit_posts' => true,
+        'delete_posts' => true,
+        'publish_posts' => true,
+        'upload_files' => true,
+        'edit_published_posts' => true,
+        'delete_published_posts' => true,
+        'edit_proyectos' => true,
+        'publish_proyectos' => true,
+        'read_private_proyectos' => true,
+        'delete_proyectos' => true,
+        'delete_published_proyectos' => true,
+        'edit_published_proyectos' => true,
+        'read_proyectos' => true
+    ));
+
+    // Asegurar que el administrador tenga todas las capacidades
+    $admin_role = get_role('administrator');
     if ($admin_role) {
+        $admin_role->add_cap('read');
+        $admin_role->add_cap('edit_posts');
+        $admin_role->add_cap('delete_posts');
+        $admin_role->add_cap('publish_posts');
+        $admin_role->add_cap('upload_files');
+        $admin_role->add_cap('edit_published_posts');
+        $admin_role->add_cap('delete_published_posts');
+        $admin_role->add_cap('edit_others_posts');
+        $admin_role->add_cap('delete_others_posts');
+        $admin_role->add_cap('read_private_posts');
+        $admin_role->add_cap('edit_private_posts');
+        $admin_role->add_cap('delete_private_posts');
         $admin_role->add_cap('edit_proyectos');
-        $admin_role->add_cap('edit_published_proyectos');
-        $admin_role->add_cap('publish_proyectos');
-        $admin_role->add_cap('delete_proyectos');
-        $admin_role->add_cap('delete_published_proyectos');
         $admin_role->add_cap('edit_others_proyectos');
+        $admin_role->add_cap('publish_proyectos');
+        $admin_role->add_cap('read_private_proyectos');
+        $admin_role->add_cap('delete_proyectos');
         $admin_role->add_cap('delete_others_proyectos');
-    }
-
-    $user_role = get_role('project_user');
-    if ($user_role) {
-        $user_role->add_cap('edit_proyectos');
-        $user_role->add_cap('edit_published_proyectos');
-        $user_role->add_cap('publish_proyectos');
+        $admin_role->add_cap('delete_published_proyectos');
+        $admin_role->add_cap('delete_private_proyectos');
+        $admin_role->add_cap('edit_published_proyectos');
+        $admin_role->add_cap('edit_private_proyectos');
+        $admin_role->add_cap('read_proyectos');
+        $admin_role->add_cap('manage_options');
+        $admin_role->add_cap('list_users');
+        $admin_role->add_cap('edit_users');
+        $admin_role->add_cap('create_users');
+        $admin_role->add_cap('delete_users');
+        $admin_role->add_cap('promote_users');
+        $admin_role->add_cap('remove_users');
+        $admin_role->add_cap('add_users');
     }
 }
-add_action('init', 'PM_update_role_capabilities');
+
+// Registrar el hook para la activación del plugin
+register_activation_hook(PM_PLUGIN_DIR . '../Project_Management.php', 'PM_register_custom_roles');
+
+// Función para limpiar roles al desactivar el plugin
+function PM_remove_custom_roles() {
+    remove_role('project_admin');
+    remove_role('project_user');
+}
+
+// Registrar el hook para la desactivación del plugin
+register_deactivation_hook(PM_PLUGIN_DIR . '../Project_Management.php', 'PM_remove_custom_roles');
 
 function custom_user_registration($request) {
     $username = sanitize_text_field($request['username']);

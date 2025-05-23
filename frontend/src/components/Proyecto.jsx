@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { LOCAL_URL_API } from "../constants/constans";
-import axios from "axios";
 import TableroKanban from "./TableroKanban";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -14,86 +13,152 @@ const Proyecto = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const token = localStorage.getItem("jwtToken");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    const headers = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    };
+
+    // Obtener el rol del usuario actual
+    const fetchUserRole = async () => {
+      try {
+        const response = await fetch(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
+          headers: headers
+        });
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.removeItem("jwtToken");
+            navigate("/login");
+            return;
+          }
+          throw new Error("Error al obtener el rol del usuario");
+        }
+        
+        const userData = await response.json();
+        setUserRole(userData.roles[0]); // Asumimos que el usuario tiene un solo rol
+      } catch (error) {
+        console.error("Error al obtener el rol:", error);
+        if (error.message.includes("401")) {
+          localStorage.removeItem("jwtToken");
+          navigate("/login");
+          return;
+        }
+        setError("Error al obtener el rol del usuario");
+      }
+    };
+
+    // Obtener detalles del proyecto
     const fetchProyecto = async () => {
       try {
-        const token = localStorage.getItem("jwtToken");
-        if (!token) {
-          throw new Error("Token no encontrado");
+        const response = await fetch(`${LOCAL_URL_API}wp-json/wp/v2/proyectos/${id}`, {
+          headers: headers
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.removeItem("jwtToken");
+            navigate("/login");
+            return;
+          }
+          throw new Error("Error al cargar el proyecto");
         }
 
-        // Obtener el rol del usuario actual
-        const userResponse = await axios.get(
-          `${LOCAL_URL_API}wp-json/wp/v2/users/me`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        setUserRole(userResponse.data.roles[0]);
-
-        // Obtener detalles del proyecto
-        const response = await axios.get(
-          `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        setProyecto(response.data);
+        const data = await response.json();
+        setProyecto(data);
 
         // Obtener información de los participantes
-        if (response.data.meta && response.data.meta.participantes) {
-          const participantesPromises = response.data.meta.participantes.map(
-            async (participanteId) => {
-              const userResponse = await axios.get(
-                `${LOCAL_URL_API}wp-json/wp/v2/users/${participanteId}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-              return userResponse.data;
+        if (data.meta && data.meta.participantes) {
+          try {
+            const usersResponse = await fetch(`${LOCAL_URL_API}wp-json/wp/v2/users?per_page=100`, {
+              headers: headers
+            });
+
+            if (!usersResponse.ok) {
+              if (usersResponse.status === 401) {
+                localStorage.removeItem("jwtToken");
+                navigate("/login");
+                return;
+              }
+              throw new Error("Error al cargar los usuarios");
             }
-          );
 
-          const participantesData = await Promise.all(participantesPromises);
-          setParticipantes(participantesData);
+            const users = await usersResponse.json();
+            const participantesInfo = users.filter(user => 
+              data.meta.participantes.includes(user.id.toString())
+            );
+            setParticipantes(participantesInfo);
+          } catch (error) {
+            console.error("Error al cargar participantes:", error);
+            if (error.message.includes("401")) {
+              localStorage.removeItem("jwtToken");
+              navigate("/login");
+              return;
+            }
+            setParticipantes([]);
+          }
         }
-
-        setLoading(false);
       } catch (error) {
         console.error("Error al cargar el proyecto:", error);
+        if (error.message.includes("401")) {
+          localStorage.removeItem("jwtToken");
+          navigate("/login");
+          return;
+        }
         setError("Error al cargar el proyecto");
+      } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
-      fetchProyecto();
-    }
-  }, [id]);
+    fetchUserRole();
+    fetchProyecto();
+  }, [id, navigate]);
 
-  const handleEliminarProyecto = async () => {
-    if (window.confirm("¿Estás seguro de que deseas eliminar este proyecto?")) {
-      try {
-        const token = localStorage.getItem("jwtToken");
-        await axios.delete(
-          `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        navigate("/dashboard");
-      } catch (error) {
-        console.error("Error al eliminar el proyecto:", error);
-        setError("Error al eliminar el proyecto");
+  const handleDelete = async () => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este proyecto?")) {
+      return;
+    }
+
+    const token = localStorage.getItem("jwtToken");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${LOCAL_URL_API}wp-json/wp/v2/proyectos/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem("jwtToken");
+          navigate("/login");
+          return;
+        }
+        throw new Error("Error al eliminar el proyecto");
       }
+
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error al eliminar el proyecto:", error);
+      if (error.message.includes("401")) {
+        localStorage.removeItem("jwtToken");
+        navigate("/login");
+        return;
+      }
+      setError("Error al eliminar el proyecto");
     }
   };
 
@@ -109,6 +174,8 @@ const Proyecto = () => {
     return <div className="error">No se encontró el proyecto</div>;
   }
 
+  const canManageProject = userRole === "administrator" || userRole === "project_admin";
+
   return (
     <div className="proyecto-container">
       <div className="proyecto-header">
@@ -118,7 +185,7 @@ const Proyecto = () => {
             <p>Fecha de creación: {new Date(proyecto.date).toLocaleDateString()}</p>
           </div>
         </div>
-        {userRole === "project_admin" && (
+        {canManageProject && (
           <div className="proyecto-actions">
             <button 
               className="btn-editar"
@@ -128,7 +195,7 @@ const Proyecto = () => {
             </button>
             <button 
               className="btn-eliminar"
-              onClick={handleEliminarProyecto}
+              onClick={handleDelete}
             >
               Eliminar Proyecto
             </button>
