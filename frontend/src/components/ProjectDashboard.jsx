@@ -24,6 +24,7 @@ const ProjectDashboard = () => {
     priority: 'media',
     assignedTo: ''
   });
+  const [projectParticipants, setProjectParticipants] = useState([]);
 
   const { userRole, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -66,9 +67,6 @@ const ProjectDashboard = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
-      console.log('=== DEBUG USERS FETCH ===');
-      console.log('Token:', token);
-      
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/wp/v2/users`,
         {
@@ -79,41 +77,25 @@ const ProjectDashboard = () => {
         }
       );
       
-      console.log('Response data:', response.data);
+      const projectUsers = response.data.filter(user => 
+        user.roles && user.roles.includes('project_user')
+      );
       
-      // Filtrar usuarios con rol project_user
-      const projectUsers = response.data.filter(user => {
-        console.log('User:', user.name, 'Roles:', user.roles);
-        return user.roles && user.roles.includes('project_user');
-      });
-      
-      console.log('Filtered project users:', projectUsers);
-      
-      // Si hay un proyecto seleccionado, filtrar por sus participantes
       if (selectedProject) {
-        console.log('Selected project:', selectedProject);
-        console.log('Project participants:', selectedProject.meta?.participantes);
-        
         const participantesIds = selectedProject.meta?.participantes || [];
         const filteredUsers = projectUsers.filter(user => 
           participantesIds.includes(user.id.toString())
         );
-        console.log('Filtered participants:', filteredUsers);
         setUsers(filteredUsers);
       } else {
-        // Si no hay proyecto seleccionado, mostrar todos los usuarios project_user
         setUsers(projectUsers);
       }
     } catch (error) {
       console.error('Error al cargar usuarios:', error);
-      if (error.response) {
-        console.error('Error response:', error.response.data);
-      }
       setError('Error al cargar usuarios. Por favor, intenta de nuevo.');
     }
   };
 
-  // Añadir un useEffect para actualizar los usuarios cuando se selecciona un proyecto
   useEffect(() => {
     if (selectedProject) {
       fetchUsers();
@@ -162,11 +144,8 @@ const ProjectDashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('jwtToken');
-      
-      // Obtener las tareas actuales del proyecto
       const currentTasks = selectedProject.meta?.tareas || [];
       
-      // Crear nueva tarea con el formato correcto que espera WordPress
       const newTaskData = {
         nombre: newTask.title,
         estado: 'pendiente',
@@ -175,10 +154,8 @@ const ProjectDashboard = () => {
         asignado: newTask.assignedTo
       };
 
-      // Añadir la nueva tarea al array existente
       const updatedTasks = [...currentTasks, newTaskData];
 
-      // Actualizar el proyecto con las nuevas tareas
       const response = await axios.post(
         `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
         {
@@ -194,10 +171,7 @@ const ProjectDashboard = () => {
           }
         }
       );
-
-      console.log('Tarea creada:', response.data);
       
-      // Actualizar el proyecto seleccionado con las nuevas tareas
       setSelectedProject({
         ...response.data,
         meta: {
@@ -206,7 +180,6 @@ const ProjectDashboard = () => {
         }
       });
 
-      // Limpiar el formulario
       setNewTask({
         title: '',
         description: '',
@@ -216,28 +189,19 @@ const ProjectDashboard = () => {
       setShowCreateTask(false);
     } catch (error) {
       console.error('Error al crear tarea:', error);
-      if (error.response) {
-        console.error('Detalles del error:', error.response.data);
-        setError(`Error al crear la tarea: ${error.response.data.message || 'Error de formato'}`);
-      } else {
-        setError('Error al crear la tarea. Por favor, intenta de nuevo.');
-      }
+      setError('Error al crear la tarea. Por favor, intenta de nuevo.');
     }
   };
 
   const handleUpdateTaskStatus = async (taskId, newStatus) => {
     try {
       const token = localStorage.getItem('jwtToken');
-      
-      // Obtener las tareas actuales
       const currentTasks = selectedProject.meta?.tareas || [];
       
-      // Actualizar el estado de la tarea
       const updatedTasks = currentTasks.map(task => 
         task.nombre === taskId ? { ...task, estado: newStatus } : task
       );
 
-      // Actualizar el proyecto con las tareas actualizadas
       const response = await axios.post(
         `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
         {
@@ -253,10 +217,7 @@ const ProjectDashboard = () => {
           }
         }
       );
-
-      console.log('Tarea actualizada:', response.data);
       
-      // Actualizar el proyecto seleccionado
       setSelectedProject({
         ...selectedProject,
         meta: {
@@ -266,12 +227,7 @@ const ProjectDashboard = () => {
       });
     } catch (error) {
       console.error('Error al actualizar tarea:', error);
-      if (error.response) {
-        console.error('Detalles del error:', error.response.data);
-        setError(`Error al actualizar la tarea: ${error.response.data.message || 'Error de formato'}`);
-      } else {
-        setError('Error al actualizar la tarea. Por favor, intenta de nuevo.');
-      }
+      setError('Error al actualizar la tarea. Por favor, intenta de nuevo.');
     }
   };
 
@@ -292,7 +248,6 @@ const ProjectDashboard = () => {
         }
       );
 
-      // Actualizar la lista de proyectos
       setProjects(projects.filter(project => project.id !== projectId));
       if (selectedProject?.id === projectId) {
         setSelectedProject(null);
@@ -327,7 +282,6 @@ const ProjectDashboard = () => {
         }
       );
 
-      // Actualizar el estado local
       setSelectedProject(prev => ({
         ...prev,
         meta: {
@@ -341,80 +295,129 @@ const ProjectDashboard = () => {
     }
   };
 
-  const renderTask = (task) => (
-    <div key={task.nombre} className="task-card">
-      <div className="task-header">
-        <h4>{task.nombre}</h4>
-        <div className="task-actions">
-          <button
-            className="btn-delete"
-            onClick={() => handleDeleteTask(task.nombre)}
-            title="Eliminar tarea"
-          >
-            <i className="fas fa-trash"></i>
-          </button>
-        </div>
-      </div>
-      <p>{task.descripcion}</p>
-      <div className="task-meta">
-        <span className={`priority ${task.prioridad}`}>
-          {task.prioridad}
-        </span>
-        <span className="assigned-to">
-          Asignado a: {users.find(user => user.id.toString() === task.asignado)?.name || 'No asignado'}
-        </span>
-      </div>
-      {task.problemas && task.problemas.length > 0 && (
-        <div className="task-problems">
-          <h5>Problemas Reportados:</h5>
-          {task.problemas.map(problem => (
-            <div key={problem.nombre} className="problem-card">
-              <p className={`severity ${problem.severidad}`}>
-                Severidad: {problem.severidad}
-              </p>
-              <p>{problem.descripcion}</p>
-              <small>
-                Reportado por {problem.reportadoPor} el {new Date(problem.fechaReporte).toLocaleDateString()}
-              </small>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const fetchProjectParticipants = async (participantIds) => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      // Primero obtenemos todos los usuarios del proyecto
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/wp/v2/users`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-  const renderProject = (project) => (
-    <div 
-      key={project.id} 
-      className={`project-card ${selectedProject?.id === project.id ? 'selected' : ''}`}
-      onClick={() => setSelectedProject(project)}
-    >
-      <div className="project-header">
-        <h3>{project.title.rendered}</h3>
-        <div className="project-actions">
-          <button
-            className="btn-delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteProject(project.id);
-            }}
-            title="Eliminar proyecto"
+      // Filtramos solo los usuarios que son participantes del proyecto
+      const participants = response.data.filter(user => 
+        participantIds.includes(user.id.toString())
+      );
+
+      setProjectParticipants(participants);
+    } catch (error) {
+      console.error('Error al cargar participantes:', error);
+      // En caso de error, mostramos un mensaje más amigable
+      setError('No se pudieron cargar los detalles de los participantes. Por favor, intenta de nuevo.');
+    }
+  };
+
+  const handleProjectClick = async (project) => {
+    try {
+      setSelectedProject(project);
+      if (project.meta?.participantes) {
+        await fetchProjectParticipants(project.meta.participantes);
+      }
+    } catch (error) {
+      console.error('Error al cargar detalles del proyecto:', error);
+      setError('Error al cargar los detalles del proyecto');
+    }
+  };
+
+  const renderProjectDetails = () => {
+    if (!selectedProject) return null;
+
+    return (
+      <div className="project-details">
+        <div className="project-details-header">
+          <h2>{selectedProject.title.rendered}</h2>
+          <button 
+            className="btn-back"
+            onClick={() => setSelectedProject(null)}
           >
-            <i className="fas fa-trash"></i>
+            <i className="fas fa-arrow-left"></i> Volver
           </button>
         </div>
+
+        <div className="project-details-content">
+          <div className="project-info">
+            <div className="info-section">
+              <h3>Descripción</h3>
+              <div dangerouslySetInnerHTML={{ __html: selectedProject.content.rendered }} />
+            </div>
+
+            <div className="info-section">
+              <h3>Participantes</h3>
+              <div className="participants-list">
+                {projectParticipants.length > 0 ? (
+                  projectParticipants.map(participant => (
+                    <div key={participant.id} className="participant-card">
+                      <div className="participant-avatar">
+                        {participant.avatar_urls ? (
+                          <img src={participant.avatar_urls[48]} alt={participant.name} />
+                        ) : (
+                          <div className="avatar-placeholder">
+                            {participant.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="participant-info">
+                        <h4>{participant.name}</h4>
+                        <p>{participant.email}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="no-participants">No hay participantes asignados</p>
+                )}
+              </div>
+            </div>
+
+            <div className="info-section">
+              <h3>Tareas</h3>
+              <div className="tasks-list">
+                {selectedProject.meta?.tareas?.length > 0 ? (
+                  selectedProject.meta.tareas.map(task => (
+                    <div key={task.nombre} className="task-card">
+                      <div className="task-header">
+                        <h4>{task.nombre}</h4>
+                        <span className={`status-badge ${task.estado}`}>
+                          {task.estado}
+                        </span>
+                      </div>
+                      <p>{task.descripcion}</p>
+                      <div className="task-meta">
+                        <span className={`priority ${task.prioridad}`}>
+                          {task.prioridad}
+                        </span>
+                        {task.asignadoA && (
+                          <span className="assigned-to">
+                            Asignado a: {task.asignadoA}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="no-tasks">No hay tareas asignadas</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <p>{project.content.rendered}</p>
-      <div className="project-meta">
-        <span className="participants">
-          Participantes: {project.meta?.participantes?.length || 0}
-        </span>
-        <span className="tasks">
-          Tareas: {project.meta?.tareas?.length || 0}
-        </span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) return <div className="loading">Cargando...</div>;
   if (error) return <div className="error">{error}</div>;
@@ -423,30 +426,63 @@ const ProjectDashboard = () => {
     <div className="project-dashboard">
       <div className="dashboard-header">
         <h1>Panel de Administración de Proyectos</h1>
-        <button className="btn-create" onClick={() => setShowCreateProject(true)}>
-          Crear Nuevo Proyecto
-        </button>
+        <div className="dashboard-actions">
+          <button className="btn-create" onClick={() => setShowCreateProject(true)}>
+            <i className="fas fa-plus"></i> Nuevo Proyecto
+          </button>
+        </div>
       </div>
 
-      <div className="dashboard-content">
+      {selectedProject ? (
+        renderProjectDetails()
+      ) : (
         <div className="projects-list">
           <h2>Proyectos</h2>
-          {projects.map(renderProject)}
-        </div>
-
-        {selectedProject && (
-          <div className="project-details">
-            <h2>{selectedProject.title.rendered}</h2>
-            <div className="tasks-container">
-              <h3>Tareas</h3>
-              <button className="btn-create" onClick={() => setShowCreateTask(true)}>
-                Crear Nueva Tarea
-              </button>
-              {selectedProject.meta?.tareas?.map(renderTask)}
+          {projects.length === 0 ? (
+            <p>No hay proyectos disponibles</p>
+          ) : (
+            <div className="projects-grid">
+              {projects.map(project => (
+                <div 
+                  key={project.id} 
+                  className="project-card"
+                  onClick={() => handleProjectClick(project)}
+                >
+                  <div className="project-header">
+                    <h3>{project.title.rendered}</h3>
+                    <div className="project-actions">
+                      <button 
+                        className="btn-delete" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject(project.id);
+                        }}
+                        title="Eliminar proyecto"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div dangerouslySetInnerHTML={{ __html: project.content.rendered }} />
+                  <div className="project-meta">
+                    <div className="meta-item">
+                      <i className="fas fa-users"></i>
+                      <span>Participantes: {project.meta?.participantes?.length || 0}</span>
+                    </div>
+                    <div className="meta-item">
+                      <i className="fas fa-tasks"></i>
+                      <span>Tareas: {project.meta?.tareas?.length || 0}</span>
+                    </div>
+                  </div>
+                  <button className="btn-view-details">
+                    Ver Detalles
+                  </button>
+                </div>
+              ))}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {showCreateProject && (
         <div className="modal">
