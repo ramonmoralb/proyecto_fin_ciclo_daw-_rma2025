@@ -166,13 +166,13 @@ const ProjectDashboard = () => {
       // Obtener las tareas actuales del proyecto
       const currentTasks = selectedProject.meta?.tareas || [];
       
-      // Crear nueva tarea con el formato exacto que espera WordPress
+      // Crear nueva tarea con el formato correcto que espera WordPress
       const newTaskData = {
         nombre: newTask.title,
         estado: 'pendiente',
         descripcion: newTask.description,
         prioridad: newTask.priority,
-        asignado: newTask.assignedTo.toString() // Asegurarnos de que el ID sea string
+        asignado: newTask.assignedTo
       };
 
       // Añadir la nueva tarea al array existente
@@ -199,9 +199,9 @@ const ProjectDashboard = () => {
       
       // Actualizar el proyecto seleccionado con las nuevas tareas
       setSelectedProject({
-        ...selectedProject,
+        ...response.data,
         meta: {
-          ...selectedProject.meta,
+          ...response.data.meta,
           tareas: updatedTasks
         }
       });
@@ -275,231 +275,284 @@ const ProjectDashboard = () => {
     }
   };
 
+  const handleDeleteProject = async (projectId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('jwtToken');
+      await axios.delete(
+        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${projectId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Actualizar la lista de proyectos
+      setProjects(projects.filter(project => project.id !== projectId));
+      if (selectedProject?.id === projectId) {
+        setSelectedProject(null);
+      }
+    } catch (error) {
+      console.error('Error al eliminar proyecto:', error);
+      setError('Error al eliminar el proyecto');
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const updatedTasks = selectedProject.meta.tareas.filter(task => task.nombre !== taskId);
+
+      await axios.put(
+        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
+        {
+          meta: {
+            tareas: updatedTasks
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Actualizar el estado local
+      setSelectedProject(prev => ({
+        ...prev,
+        meta: {
+          ...prev.meta,
+          tareas: updatedTasks
+        }
+      }));
+    } catch (error) {
+      console.error('Error al eliminar tarea:', error);
+      setError('Error al eliminar la tarea');
+    }
+  };
+
+  const renderTask = (task) => (
+    <div key={task.nombre} className="task-card">
+      <div className="task-header">
+        <h4>{task.nombre}</h4>
+        <div className="task-actions">
+          <button
+            className="btn-delete"
+            onClick={() => handleDeleteTask(task.nombre)}
+            title="Eliminar tarea"
+          >
+            <i className="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      <p>{task.descripcion}</p>
+      <div className="task-meta">
+        <span className={`priority ${task.prioridad}`}>
+          {task.prioridad}
+        </span>
+        <span className="assigned-to">
+          Asignado a: {users.find(user => user.id.toString() === task.asignado)?.name || 'No asignado'}
+        </span>
+      </div>
+      {task.problemas && task.problemas.length > 0 && (
+        <div className="task-problems">
+          <h5>Problemas Reportados:</h5>
+          {task.problemas.map(problem => (
+            <div key={problem.nombre} className="problem-card">
+              <p className={`severity ${problem.severidad}`}>
+                Severidad: {problem.severidad}
+              </p>
+              <p>{problem.descripcion}</p>
+              <small>
+                Reportado por {problem.reportadoPor} el {new Date(problem.fechaReporte).toLocaleDateString()}
+              </small>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderProject = (project) => (
+    <div 
+      key={project.id} 
+      className={`project-card ${selectedProject?.id === project.id ? 'selected' : ''}`}
+      onClick={() => setSelectedProject(project)}
+    >
+      <div className="project-header">
+        <h3>{project.title.rendered}</h3>
+        <div className="project-actions">
+          <button
+            className="btn-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteProject(project.id);
+            }}
+            title="Eliminar proyecto"
+          >
+            <i className="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      <p>{project.content.rendered}</p>
+      <div className="project-meta">
+        <span className="participants">
+          Participantes: {project.meta?.participantes?.length || 0}
+        </span>
+        <span className="tasks">
+          Tareas: {project.meta?.tareas?.length || 0}
+        </span>
+      </div>
+    </div>
+  );
+
   if (loading) return <div className="loading">Cargando...</div>;
   if (error) return <div className="error">{error}</div>;
 
   return (
     <div className="project-dashboard">
-      <h1>Panel de Gestión de Proyectos</h1>
-      
-      <div className="dashboard-actions">
-        <button 
-          className="btn-create"
-          onClick={() => setShowCreateProject(!showCreateProject)}
-        >
-          {showCreateProject ? 'Cancelar' : 'Crear Nuevo Proyecto'}
+      <div className="dashboard-header">
+        <h1>Panel de Administración de Proyectos</h1>
+        <button className="btn-create" onClick={() => setShowCreateProject(true)}>
+          Crear Nuevo Proyecto
         </button>
       </div>
 
+      <div className="dashboard-content">
+        <div className="projects-list">
+          <h2>Proyectos</h2>
+          {projects.map(renderProject)}
+        </div>
+
+        {selectedProject && (
+          <div className="project-details">
+            <h2>{selectedProject.title.rendered}</h2>
+            <div className="tasks-container">
+              <h3>Tareas</h3>
+              <button className="btn-create" onClick={() => setShowCreateTask(true)}>
+                Crear Nueva Tarea
+              </button>
+              {selectedProject.meta?.tareas?.map(renderTask)}
+            </div>
+          </div>
+        )}
+      </div>
+
       {showCreateProject && (
-        <div className="create-project-form">
-          <h2>Crear Nuevo Proyecto</h2>
-          <form onSubmit={handleCreateProject}>
-            <div className="form-group">
-              <label>Título:</label>
-              <input
-                type="text"
-                value={newProject.title}
-                onChange={(e) => setNewProject({...newProject, title: e.target.value})}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Descripción:</label>
-              <textarea
-                value={newProject.description}
-                onChange={(e) => setNewProject({...newProject, description: e.target.value})}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Participantes:</label>
-              <select
-                multiple
-                value={newProject.assignedUsers}
-                onChange={(e) => setNewProject({
-                  ...newProject,
-                  assignedUsers: Array.from(e.target.selectedOptions, option => option.value)
-                })}
-              >
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-              <small>Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</small>
-            </div>
-            <button type="submit" className="btn-submit">Crear Proyecto</button>
-          </form>
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Crear Nuevo Proyecto</h2>
+            <form onSubmit={handleCreateProject}>
+              <div className="form-group">
+                <label>Título:</label>
+                <input
+                  type="text"
+                  value={newProject.title}
+                  onChange={(e) => setNewProject({...newProject, title: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Descripción:</label>
+                <textarea
+                  value={newProject.description}
+                  onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Participantes:</label>
+                <select
+                  multiple
+                  value={newProject.assignedUsers}
+                  onChange={(e) => setNewProject({
+                    ...newProject,
+                    assignedUsers: Array.from(e.target.selectedOptions, option => option.value)
+                  })}
+                >
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+                <small>Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</small>
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn-submit">Crear Proyecto</button>
+                <button type="button" className="btn-cancel" onClick={() => setShowCreateProject(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      <div className="projects-list">
-        <h2>Proyectos</h2>
-        {projects.map(project => (
-          <div key={project.id} className="project-card">
-            <h3>{project.title?.rendered || project.title}</h3>
-            <p>{project.description?.rendered || project.description}</p>
-            <button 
-              className="btn-view"
-              onClick={() => setSelectedProject(project)}
-            >
-              Ver Tablero
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {selectedProject && (
-        <div className="kanban-board">
-          <h2>Tablero Kanban - {selectedProject.title?.rendered || selectedProject.title}</h2>
-          
-          <div className="board-actions">
-            <button 
-              className="btn-create"
-              onClick={() => setShowCreateTask(!showCreateTask)}
-            >
-              {showCreateTask ? 'Cancelar' : 'Crear Nueva Tarea'}
-            </button>
-          </div>
-
-          {showCreateTask && (
-            <div className="create-task-form">
-              <h3>Crear Nueva Tarea</h3>
-              <form onSubmit={handleCreateTask}>
-                <div className="form-group">
-                  <label>Título:</label>
-                  <input
-                    type="text"
-                    value={newTask.title}
-                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Descripción:</label>
-                  <textarea
-                    value={newTask.description}
-                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Prioridad:</label>
-                  <select
-                    value={newTask.priority}
-                    onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                  >
-                    <option value="baja">Baja</option>
-                    <option value="media">Media</option>
-                    <option value="alta">Alta</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Asignar a:</label>
-                  <select
-                    value={newTask.assignedTo}
-                    onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
-                  >
-                    <option value="">Seleccionar usuario</option>
-                    {users.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+      {showCreateTask && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Crear Nueva Tarea</h2>
+            <form onSubmit={handleCreateTask}>
+              <div className="form-group">
+                <label>Título:</label>
+                <input
+                  type="text"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Descripción:</label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Prioridad:</label>
+                <select
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                >
+                  <option value="baja">Baja</option>
+                  <option value="media">Media</option>
+                  <option value="alta">Alta</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Asignar a:</label>
+                <select
+                  value={newTask.assignedTo}
+                  onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
+                >
+                  <option value="">Seleccionar usuario</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-actions">
                 <button type="submit" className="btn-submit">Crear Tarea</button>
-              </form>
-            </div>
-          )}
-
-          <div className="kanban-columns">
-            <div className="kanban-column">
-              <h3>Pendiente</h3>
-              {selectedProject.meta?.tareas
-                ?.filter(task => task.estado === 'pendiente')
-                .map(task => {
-                  const assignedUser = users.find(user => user.id.toString() === task.asignado);
-                  return (
-                    <div key={task.nombre} className="task-card">
-                      <h4>{task.nombre}</h4>
-                      <p>{task.descripcion}</p>
-                      <div className="task-meta">
-                        <span className={`priority ${task.prioridad}`}>
-                          {task.prioridad}
-                        </span>
-                        <span className="assigned-to">
-                          Asignado a: {assignedUser ? assignedUser.name : 'No asignado'}
-                        </span>
-                      </div>
-                      <div className="task-actions">
-                        <button
-                          onClick={() => handleUpdateTaskStatus(task.nombre, 'en_progreso')}
-                          className="btn-move"
-                        >
-                          Mover a En Progreso
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-
-            <div className="kanban-column">
-              <h3>En Progreso</h3>
-              {selectedProject.meta?.tareas
-                ?.filter(task => task.estado === 'en_progreso')
-                .map(task => {
-                  const assignedUser = users.find(user => user.id.toString() === task.asignado);
-                  return (
-                    <div key={task.nombre} className="task-card">
-                      <h4>{task.nombre}</h4>
-                      <p>{task.descripcion}</p>
-                      <div className="task-meta">
-                        <span className={`priority ${task.prioridad}`}>
-                          {task.prioridad}
-                        </span>
-                        <span className="assigned-to">
-                          Asignado a: {assignedUser ? assignedUser.name : 'No asignado'}
-                        </span>
-                      </div>
-                      <div className="task-actions">
-                        <button
-                          onClick={() => handleUpdateTaskStatus(task.nombre, 'completada')}
-                          className="btn-move"
-                        >
-                          Mover a Completada
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-
-            <div className="kanban-column">
-              <h3>Completada</h3>
-              {selectedProject.meta?.tareas
-                ?.filter(task => task.estado === 'completada')
-                .map(task => {
-                  const assignedUser = users.find(user => user.id.toString() === task.asignado);
-                  return (
-                    <div key={task.nombre} className="task-card">
-                      <h4>{task.nombre}</h4>
-                      <p>{task.descripcion}</p>
-                      <div className="task-meta">
-                        <span className={`priority ${task.prioridad}`}>
-                          {task.prioridad}
-                        </span>
-                        <span className="assigned-to">
-                          Asignado a: {assignedUser ? assignedUser.name : 'No asignado'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+                <button type="button" className="btn-cancel" onClick={() => setShowCreateTask(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

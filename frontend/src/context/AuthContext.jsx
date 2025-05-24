@@ -14,42 +14,72 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const verifyAuth = async () => {
       const token = localStorage.getItem('jwtToken');
-      if (!token) {
+      const storedUserRole = localStorage.getItem('userRole');
+      const storedUserName = localStorage.getItem('userName');
+      const storedUserEmail = localStorage.getItem('userEmail');
+
+      console.log('=== DEBUG AUTH INITIAL CHECK ===');
+      console.log('Token exists:', !!token);
+      console.log('Token value:', token);
+      console.log('Stored Role:', storedUserRole);
+      console.log('Stored Name:', storedUserName);
+      console.log('Stored Email:', storedUserEmail);
+
+      if (!token || !storedUserRole) {
+        console.log('No token or role found, logging out');
+        handleLogout();
         setIsLoading(false);
         return;
       }
 
       try {
+        console.log('=== DEBUG VERIFY AUTH ===');
+        console.log('Attempting to verify token...');
+        console.log('Request headers:', {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        });
+        
         const response = await axios.get(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
 
-        const userData = response.data;
-        const roles = userData.roles || [];
-        
-        // Verificar que el usuario tenga uno de los roles permitidos
-        const allowedRoles = ['super_administrador', 'project_admin', 'project_user'];
-        const userRole = roles.find(role => allowedRoles.includes(role));
+        console.log('Response from /users/me:', response.data);
+        console.log('Response headers:', response.headers);
 
-        if (userRole) {
-          setIsAuthenticated(true);
-          setUserRole(userRole);
-          setUserName(userData.name);
-          setUserEmail(userData.email);
+        if (response.data) {
+          const userData = response.data;
+          const roles = userData.roles || [];
           
-          // Actualizar localStorage con los datos correctos
-          localStorage.setItem('userRole', userRole);
-          localStorage.setItem('userName', userData.name);
-          localStorage.setItem('userEmail', userData.email);
+          console.log('User roles from response:', roles);
+          console.log('Stored role to check:', storedUserRole);
+          
+          if (roles.includes(storedUserRole)) {
+            console.log('Role match found, setting authenticated state');
+            setIsAuthenticated(true);
+            setUserRole(storedUserRole);
+            setUserName(storedUserName);
+            setUserEmail(storedUserEmail);
+          } else {
+            console.log('Role mismatch, logging out');
+            handleLogout();
+          }
         } else {
-          // Si el usuario no tiene un rol permitido, cerrar sesión
-          logout();
+          console.log('No user data in response, logging out');
+          handleLogout();
         }
       } catch (error) {
-        console.error('Error verificando autenticación:', error);
-        logout();
+        console.error('=== DEBUG AUTH ERROR ===');
+        console.error('Error details:', error);
+        if (error.response) {
+          console.error('Error response:', error.response.data);
+          console.error('Error status:', error.response.status);
+          console.error('Error headers:', error.response.headers);
+        }
+        handleLogout();
       } finally {
         setIsLoading(false);
       }
@@ -58,7 +88,26 @@ export const AuthProvider = ({ children }) => {
     verifyAuth();
   }, []);
 
-  const login = (email, role, name) => {
+  const handleLogout = () => {
+    console.log('=== DEBUG LOGOUT ===');
+    console.log('Clearing auth state and localStorage');
+    localStorage.removeItem('jwtToken');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userEmail');
+    setIsAuthenticated(false);
+    setUserRole(null);
+    setUserName('');
+    setUserEmail('');
+  };
+
+  const login = (token, email, role, name) => {
+    console.log('=== DEBUG LOGIN ===');
+    console.log('Setting auth state with:', { email, role, name });
+    localStorage.setItem('jwtToken', token);
+    localStorage.setItem('userRole', role);
+    localStorage.setItem('userName', name);
+    localStorage.setItem('userEmail', email);
     setIsAuthenticated(true);
     setUserRole(role);
     setUserName(name);
@@ -66,14 +115,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('jwtToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userName');
-    setIsAuthenticated(false);
-    setUserRole('');
-    setUserName('');
-    setUserEmail('');
+    handleLogout();
   };
 
   if (isLoading) {

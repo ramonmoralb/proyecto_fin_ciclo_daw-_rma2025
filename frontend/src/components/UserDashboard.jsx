@@ -2,72 +2,29 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { LOCAL_URL_API } from '../constants/constans';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import '../styles/UserDashboard.css';
 
 const UserDashboard = () => {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { userRole, userName, userEmail } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [error, setError] = useState('');
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [showSubtaskForm, setShowSubtaskForm] = useState(false);
-  const [showIssueForm, setShowIssueForm] = useState(false);
-  const [newSubtask, setNewSubtask] = useState({
-    title: '',
-    description: ''
-  });
-  const [newIssue, setNewIssue] = useState({
+  const [loading, setLoading] = useState(true);
+  const [reportProblem, setReportProblem] = useState({
+    taskId: '',
     description: '',
-    severity: 'media'
+    severity: 'medium'
   });
-
-  const { userRole, isAuthenticated, userEmail } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
+    fetchProjects();
+  }, []);
 
-    if (userRole !== 'project_user') {
-      setError('No tienes permisos para acceder a esta página');
-      return;
-    }
-
-    fetchTasks();
-  }, [userRole, isAuthenticated, navigate]);
-
-  const fetchTasks = async () => {
+  const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
       const response = await axios.get(
-        `${LOCAL_URL_API}wp-json/pm/v1/tasks?assigned_to=${userEmail}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      setTasks(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error al cargar tareas:', error);
-      setError('Error al cargar las tareas');
-      setLoading(false);
-    }
-  };
-
-  const handleAddSubtask = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('jwtToken');
-      const response = await axios.post(
-        `${LOCAL_URL_API}wp-json/pm/v1/subtasks`,
-        {
-          ...newSubtask,
-          taskId: selectedTask.id
-        },
+        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -76,58 +33,36 @@ const UserDashboard = () => {
         }
       );
 
-      if (response.data) {
-        setShowSubtaskForm(false);
-        setNewSubtask({
-          title: '',
-          description: ''
-        });
-        fetchTasks();
-      }
-    } catch (error) {
-      console.error('Error al crear subtarea:', error);
-      setError('Error al crear la subtarea');
-    }
-  };
-
-  const handleReportIssue = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('jwtToken');
-      const response = await axios.post(
-        `${LOCAL_URL_API}wp-json/pm/v1/issues`,
-        {
-          ...newIssue,
-          taskId: selectedTask.id
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
+      // Filtrar proyectos donde el usuario es participante
+      const userProjects = response.data.filter(project => 
+        project.meta?.participantes?.includes(userEmail)
       );
-
-      if (response.data) {
-        setShowIssueForm(false);
-        setNewIssue({
-          description: '',
-          severity: 'media'
-        });
-        fetchTasks();
-      }
+      setProjects(userProjects);
     } catch (error) {
-      console.error('Error al reportar problema:', error);
-      setError('Error al reportar el problema');
+      console.error('Error al cargar proyectos:', error);
+      setError('Error al cargar los proyectos');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateTaskStatus = async (taskId, newStatus) => {
     try {
       const token = localStorage.getItem('jwtToken');
+      const updatedTasks = selectedProject.meta.tareas.map(task => {
+        if (task.id === taskId) {
+          return { ...task, status: newStatus };
+        }
+        return task;
+      });
+
       await axios.put(
-        `${LOCAL_URL_API}wp-json/pm/v1/tasks/${taskId}`,
-        { status: newStatus },
+        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
+        {
+          meta: {
+            tareas: updatedTasks
+          }
+        },
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -135,226 +70,206 @@ const UserDashboard = () => {
           }
         }
       );
-      fetchTasks();
+
+      // Actualizar el estado local
+      setSelectedProject(prev => ({
+        ...prev,
+        meta: {
+          ...prev.meta,
+          tareas: updatedTasks
+        }
+      }));
     } catch (error) {
-      console.error('Error al actualizar estado:', error);
-      setError('Error al actualizar el estado de la tarea');
+      console.error('Error al actualizar tarea:', error);
+      setError('Error al actualizar la tarea');
     }
   };
 
-  if (loading) return <div className="loading">Cargando...</div>;
-  if (error) return <div className="error">{error}</div>;
+  const handleReportProblem = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const task = selectedProject.meta.tareas.find(t => t.id === reportProblem.taskId);
+      
+      if (!task) {
+        setError('Tarea no encontrada');
+        return;
+      }
+
+      const updatedTask = {
+        ...task,
+        problems: [
+          ...(task.problems || []),
+          {
+            id: Date.now(),
+            description: reportProblem.description,
+            severity: reportProblem.severity,
+            reportedBy: userName,
+            reportedAt: new Date().toISOString(),
+            status: 'pending'
+          }
+        ]
+      };
+
+      const updatedTasks = selectedProject.meta.tareas.map(t => 
+        t.id === reportProblem.taskId ? updatedTask : t
+      );
+
+      await axios.put(
+        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
+        {
+          meta: {
+            tareas: updatedTasks
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Actualizar el estado local
+      setSelectedProject(prev => ({
+        ...prev,
+        meta: {
+          ...prev.meta,
+          tareas: updatedTasks
+        }
+      }));
+
+      // Limpiar el formulario
+      setReportProblem({
+        taskId: '',
+        description: '',
+        severity: 'medium'
+      });
+    } catch (error) {
+      console.error('Error al reportar problema:', error);
+      setError('Error al reportar el problema');
+    }
+  };
+
+  if (loading) {
+    return <div className="loading">Cargando...</div>;
+  }
 
   return (
     <div className="user-dashboard">
-      <h1>Mis Tareas</h1>
-
-      <div className="tasks-container">
-        <div className="tasks-column">
-          <h2>Pendientes</h2>
-          {tasks
-            .filter(task => task.status === 'pendiente')
-            .map(task => (
-              <div key={task.id} className="task-card">
-                <h3>{task.title}</h3>
-                <p>{task.description}</p>
-                <div className="task-meta">
-                  <span className={`priority ${task.priority}`}>
-                    {task.priority}
-                  </span>
-                </div>
-                <div className="task-actions">
-                  <button
-                    onClick={() => {
-                      setSelectedTask(task);
-                      setShowSubtaskForm(true);
-                    }}
-                    className="btn-add-subtask"
-                  >
-                    Añadir Subtarea
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedTask(task);
-                      setShowIssueForm(true);
-                    }}
-                    className="btn-report-issue"
-                  >
-                    Reportar Problema
-                  </button>
-                  <button
-                    onClick={() => handleUpdateTaskStatus(task.id, 'en_progreso')}
-                    className="btn-move"
-                  >
-                    Mover a En Progreso
-                  </button>
-                </div>
-              </div>
-            ))}
-        </div>
-
-        <div className="tasks-column">
-          <h2>En Progreso</h2>
-          {tasks
-            .filter(task => task.status === 'en_progreso')
-            .map(task => (
-              <div key={task.id} className="task-card">
-                <h3>{task.title}</h3>
-                <p>{task.description}</p>
-                <div className="task-meta">
-                  <span className={`priority ${task.priority}`}>
-                    {task.priority}
-                  </span>
-                </div>
-                {task.subtasks && task.subtasks.length > 0 && (
-                  <div className="subtasks-list">
-                    <h4>Subtareas:</h4>
-                    <ul>
-                      {task.subtasks.map(subtask => (
-                        <li key={subtask.id}>
-                          <input
-                            type="checkbox"
-                            checked={subtask.completed}
-                            onChange={() => handleUpdateSubtaskStatus(subtask.id, !subtask.completed)}
-                          />
-                          <span>{subtask.title}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <div className="task-actions">
-                  <button
-                    onClick={() => {
-                      setSelectedTask(task);
-                      setShowSubtaskForm(true);
-                    }}
-                    className="btn-add-subtask"
-                  >
-                    Añadir Subtarea
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedTask(task);
-                      setShowIssueForm(true);
-                    }}
-                    className="btn-report-issue"
-                  >
-                    Reportar Problema
-                  </button>
-                  <button
-                    onClick={() => handleUpdateTaskStatus(task.id, 'completada')}
-                    className="btn-move"
-                  >
-                    Mover a Completada
-                  </button>
-                </div>
-              </div>
-            ))}
-        </div>
-
-        <div className="tasks-column">
-          <h2>Completadas</h2>
-          {tasks
-            .filter(task => task.status === 'completada')
-            .map(task => (
-              <div key={task.id} className="task-card completed">
-                <h3>{task.title}</h3>
-                <p>{task.description}</p>
-                <div className="task-meta">
-                  <span className={`priority ${task.priority}`}>
-                    {task.priority}
-                  </span>
-                </div>
-                {task.subtasks && task.subtasks.length > 0 && (
-                  <div className="subtasks-list">
-                    <h4>Subtareas:</h4>
-                    <ul>
-                      {task.subtasks.map(subtask => (
-                        <li key={subtask.id} className={subtask.completed ? 'completed' : ''}>
-                          <input
-                            type="checkbox"
-                            checked={subtask.completed}
-                            disabled
-                          />
-                          <span>{subtask.title}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
+      <div className="dashboard-header">
+        <h1>Panel de Usuario</h1>
+        <div className="user-info">
+          <p>Bienvenido, {userName}</p>
+          <p>Email: {userEmail}</p>
         </div>
       </div>
 
-      {showSubtaskForm && selectedTask && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>Añadir Subtarea</h2>
-            <form onSubmit={handleAddSubtask}>
-              <div className="form-group">
-                <label>Título:</label>
-                <input
-                  type="text"
-                  value={newSubtask.title}
-                  onChange={(e) => setNewSubtask({...newSubtask, title: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Descripción:</label>
-                <textarea
-                  value={newSubtask.description}
-                  onChange={(e) => setNewSubtask({...newSubtask, description: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="modal-actions">
-                <button type="submit" className="btn-submit">Añadir</button>
-                <button
-                  type="button"
-                  className="btn-cancel"
-                  onClick={() => setShowSubtaskForm(false)}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
+      <div className="dashboard-content">
+        <div className="projects-list">
+          <h2>Mis Proyectos</h2>
+          {projects.map(project => (
+            <div
+              key={project.id}
+              className={`project-card ${selectedProject?.id === project.id ? 'selected' : ''}`}
+              onClick={() => setSelectedProject(project)}
+            >
+              <h3>{project.title.rendered}</h3>
+              <p>{project.content.rendered}</p>
+            </div>
+          ))}
         </div>
-      )}
 
-      {showIssueForm && selectedTask && (
+        {selectedProject && (
+          <div className="project-details">
+            <h2>{selectedProject.title.rendered}</h2>
+            <div className="tasks-container">
+              <h3>Tareas Asignadas</h3>
+              {selectedProject.meta?.tareas?.map(task => (
+                <div key={task.id} className="task-card">
+                  <h4>{task.title}</h4>
+                  <p>{task.description}</p>
+                  <div className="task-status">
+                    <select
+                      value={task.status}
+                      onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                    >
+                      <option value="pendiente">Pendiente</option>
+                      <option value="en_progreso">En Progreso</option>
+                      <option value="completada">Completada</option>
+                    </select>
+                  </div>
+                  
+                  {task.problems && task.problems.length > 0 && (
+                    <div className="task-problems">
+                      <h5>Problemas Reportados:</h5>
+                      {task.problems.map(problem => (
+                        <div key={problem.id} className="problem-card">
+                          <p className={`severity ${problem.severity}`}>
+                            Severidad: {problem.severity}
+                          </p>
+                          <p>{problem.description}</p>
+                          <small>
+                            Reportado por {problem.reportedBy} el {new Date(problem.reportedAt).toLocaleDateString()}
+                          </small>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    className="btn-report"
+                    onClick={() => setReportProblem(prev => ({ ...prev, taskId: task.id }))}
+                  >
+                    Reportar Problema
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {reportProblem.taskId && (
         <div className="modal">
           <div className="modal-content">
-            <h2>Reportar Problema</h2>
-            <form onSubmit={handleReportIssue}>
+            <h3>Reportar Problema</h3>
+            <form onSubmit={handleReportProblem}>
               <div className="form-group">
                 <label>Descripción del Problema:</label>
                 <textarea
-                  value={newIssue.description}
-                  onChange={(e) => setNewIssue({...newIssue, description: e.target.value})}
+                  value={reportProblem.description}
+                  onChange={(e) => setReportProblem(prev => ({
+                    ...prev,
+                    description: e.target.value
+                  }))}
                   required
                 />
               </div>
               <div className="form-group">
                 <label>Severidad:</label>
                 <select
-                  value={newIssue.severity}
-                  onChange={(e) => setNewIssue({...newIssue, severity: e.target.value})}
+                  value={reportProblem.severity}
+                  onChange={(e) => setReportProblem(prev => ({
+                    ...prev,
+                    severity: e.target.value
+                  }))}
                 >
-                  <option value="baja">Baja</option>
-                  <option value="media">Media</option>
-                  <option value="alta">Alta</option>
+                  <option value="low">Baja</option>
+                  <option value="medium">Media</option>
+                  <option value="high">Alta</option>
                 </select>
               </div>
               <div className="modal-actions">
-                <button type="submit" className="btn-submit">Reportar</button>
+                <button type="submit" className="btn-submit">Enviar Reporte</button>
                 <button
                   type="button"
                   className="btn-cancel"
-                  onClick={() => setShowIssueForm(false)}
+                  onClick={() => setReportProblem({
+                    taskId: '',
+                    description: '',
+                    severity: 'medium'
+                  })}
                 >
                   Cancelar
                 </button>
@@ -363,6 +278,8 @@ const UserDashboard = () => {
           </div>
         </div>
       )}
+
+      {error && <div className="error-message">{error}</div>}
     </div>
   );
 };

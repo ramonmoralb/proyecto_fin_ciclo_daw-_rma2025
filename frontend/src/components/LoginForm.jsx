@@ -27,25 +27,33 @@ const LoginForm = () => {
         }
       );
 
-      const { token, user_email, user_nicename, roles } = response.data;
+      console.log('=== DEBUG LOGIN RESPONSE ===');
+      console.log('Full response:', response.data);
+      console.log('Token:', response.data.token);
+      console.log('User Email:', response.data.user_email);
+      console.log('User Name:', response.data.user_nicename);
+      console.log('Roles:', response.data.roles);
+      console.log('Selected Role:', response.data.roles[0]);
+      console.log('========================');
 
-      if (token) {
+      if (response.data.token) {
         // Verificar que el usuario tenga uno de los roles permitidos
         const allowedRoles = ['super_administrador', 'project_admin', 'project_user'];
-        const userRole = roles.find(role => allowedRoles.includes(role));
+        const userRole = response.data.roles.find(role => allowedRoles.includes(role));
 
         if (!userRole) {
           setMessage("Error: No tienes permisos para acceder a esta aplicación.");
           return;
         }
 
-        localStorage.setItem("jwtToken", token);
-        localStorage.setItem("userRole", userRole);
-        localStorage.setItem("userEmail", user_email);
-        localStorage.setItem("userName", user_nicename);
+        // Guardar el token y los datos del usuario
+        localStorage.setItem('jwtToken', response.data.token);
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userName', response.data.user_nicename);
+        localStorage.setItem('userEmail', response.data.user_email);
 
-        login(user_email, userRole, user_nicename);
-        
+        // Actualizar el estado de autenticación
+        login(response.data.token, response.data.user_email, userRole, response.data.user_nicename);
         setMessage("Inicio de sesión exitoso. Redirigiendo...");
         
         // Redirigir según el rol
@@ -58,18 +66,13 @@ const LoginForm = () => {
             navigate("/user-dashboard");
           }
         }, 1500);
-
-        // Log detallado de la respuesta
-        console.log('=== DEBUG LOGIN RESPONSE ===');
-        console.log('Token:', token);
-        console.log('User Email:', user_email);
-        console.log('User Name:', user_nicename);
-        console.log('Roles:', roles);
-        console.log('Selected Role:', userRole);
-        console.log('========================');
       }
     } catch (error) {
       console.error("Error al iniciar sesión:", error);
+      if (error.response) {
+        console.error("Error response:", error.response.data);
+        console.error("Error status:", error.response.status);
+      }
       setMessage(
         error.response?.data?.message || 
         "Error al iniciar sesión. Verifica tus credenciales."
