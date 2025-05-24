@@ -323,13 +323,30 @@ add_filter('editable_roles', function($roles) {
 // Añadir el campo first_login a los usuarios
 add_action('user_register', function($user_id) {
     update_user_meta($user_id, 'first_login', true);
+    update_user_meta($user_id, 'profile_image_id', ''); // Inicializar el campo de imagen de perfil
 });
 
-// Añadir el campo first_login a la respuesta de la API
+// Añadir los campos meta a la respuesta de la API
 add_filter('rest_prepare_user', function($response, $user, $request) {
     $first_login = get_user_meta($user->ID, 'first_login', true);
+    $profile_image_id = get_user_meta($user->ID, 'profile_image_id', true);
+    
+    // Si hay una imagen de perfil, obtener su URL
+    $profile_image_url = '';
+    if ($profile_image_id) {
+        $image_url = wp_get_attachment_url($profile_image_id);
+        if ($image_url) {
+            $profile_image_url = $image_url;
+        }
+    }
+    
+    // Asegurarnos de que el email esté incluido
+    $response->data['email'] = $user->user_email;
+    
     $response->data['meta'] = array(
-        'first_login' => $first_login
+        'first_login' => $first_login,
+        'profile_image_id' => $profile_image_id,
+        'profile_image_url' => $profile_image_url
     );
     return $response;
 }, 10, 3);
@@ -438,6 +455,7 @@ add_filter('rest_prepare_user', function ($response, $user, $request) {
 // Añadir las capacidades del usuario a la respuesta del token
 add_filter('jwt_auth_token_before_dispatch', function ($data, $user) {
     $user_data = get_userdata($user->ID);
+    $data['email'] = $user_data->user_email;
     $data['roles'] = $user_data->roles;
     $data['capabilities'] = $user_data->allcaps;
     return $data;
@@ -492,4 +510,46 @@ function get_project_users() {
     }
     
     return rest_ensure_response($formatted_users);
+}
+
+// Añadir endpoint para actualizar la imagen de perfil
+add_action('rest_api_init', function () {
+    register_rest_route('pm/v1', '/update-profile-image', array(
+        'methods' => 'POST',
+        'callback' => 'update_profile_image',
+        'permission_callback' => function() {
+            return is_user_logged_in();
+        }
+    ));
+});
+
+function update_profile_image($request) {
+    $user_id = get_current_user_id();
+    $image_id = $request['image_id'];
+
+    if (!$image_id) {
+        return new WP_Error('invalid_image', 'ID de imagen no válido', array('status' => 400));
+    }
+
+    // Verificar que la imagen existe
+    $image = get_post($image_id);
+    if (!$image || $image->post_type !== 'attachment') {
+        return new WP_Error('invalid_image', 'La imagen no existe', array('status' => 404));
+    }
+
+    // Actualizar el meta del usuario
+    $result = update_user_meta($user_id, 'profile_image_id', $image_id);
+    
+    if (!$result) {
+        return new WP_Error('update_failed', 'Error al actualizar la imagen de perfil', array('status' => 500));
+    }
+
+    // Obtener la URL de la imagen
+    $image_url = wp_get_attachment_url($image_id);
+
+    return array(
+        'success' => true,
+        'message' => 'Imagen de perfil actualizada correctamente',
+        'image_url' => $image_url
+    );
 }

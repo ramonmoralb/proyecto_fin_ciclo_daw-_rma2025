@@ -1,11 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import axios from "axios";
+import { LOCAL_URL_API } from "../constants/constans";
 import "../styles/Header.css";
 
 const Header = () => {
   const { isAuthenticated, userRole, userName, logout } = useAuth();
   const navigate = useNavigate();
+  const [profileImage, setProfileImage] = useState(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUserProfile();
+    }
+  }, [isAuthenticated]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      if (!token) return;
+
+      const response = await axios.get(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.meta?.profile_image_url) {
+        setProfileImage(response.data.meta.profile_image_url);
+      }
+    } catch (error) {
+      console.error('Error al cargar la imagen de perfil:', error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -36,7 +65,23 @@ const Header = () => {
                 <Link to="/user-dashboard" className="nav-link">Mis Proyectos</Link>
               )}
               <div className="user-menu">
-                <span className="user-name">Hola, {userName}</span>
+                <Link to="/profile" className="profile-link">
+                  <div className="user-info">
+                    {profileImage ? (
+                      <img 
+                        src={profileImage} 
+                        alt="Imagen de perfil" 
+                        className="header-profile-image"
+                        onError={() => setProfileImage(null)}
+                      />
+                    ) : (
+                      <div className="header-profile-placeholder">
+                        {userName?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="user-name">Hola, {userName}</span>
+                  </div>
+                </Link>
                 <span className="user-role">({userRole === 'super_administrador' ? 'Super Administrador' : 
                   userRole === 'project_admin' ? 'Administrador de Proyectos' : 'Usuario de Proyectos'})</span>
                 <button onClick={handleLogout} className="logout-button">

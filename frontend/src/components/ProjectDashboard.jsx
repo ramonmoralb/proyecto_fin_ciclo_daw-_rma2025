@@ -196,20 +196,23 @@ const ProjectDashboard = () => {
   const handleUpdateTaskStatus = async (taskId, newStatus) => {
     try {
       const token = localStorage.getItem('jwtToken');
-      const currentTasks = selectedProject.meta?.tareas || [];
       
-      const updatedTasks = currentTasks.map(task => 
-        task.nombre === taskId ? { ...task, estado: newStatus } : task
-      );
+      console.log('Actualizando tarea:', {
+        taskId,
+        newStatus,
+        projectId: selectedProject.id
+      });
+
+      const payload = {
+        task_name: taskId,
+        new_status: newStatus
+      };
+
+      console.log('Payload:', payload);
 
       const response = await axios.post(
-        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
-        {
-          meta: {
-            tareas: updatedTasks,
-            participantes: selectedProject.meta?.participantes || []
-          }
-        },
+        `${LOCAL_URL_API}wp-json/pm/v1/tasks/${selectedProject.id}/update`,
+        payload,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -217,16 +220,21 @@ const ProjectDashboard = () => {
           }
         }
       );
-      
-      setSelectedProject({
-        ...selectedProject,
-        meta: {
-          ...selectedProject.meta,
-          tareas: updatedTasks
-        }
-      });
+
+      console.log('Respuesta del servidor:', response.data);
+
+      if (response.data) {
+        setSelectedProject({
+          ...selectedProject,
+          meta: {
+            ...selectedProject.meta,
+            tareas: response.data.tareas
+          }
+        });
+      }
     } catch (error) {
       console.error('Error al actualizar tarea:', error);
+      console.error('Detalles del error:', error.response?.data);
       setError('Error al actualizar la tarea. Por favor, intenta de nuevo.');
     }
   };
@@ -267,12 +275,11 @@ const ProjectDashboard = () => {
       const token = localStorage.getItem('jwtToken');
       const updatedTasks = selectedProject.meta.tareas.filter(task => task.nombre !== taskId);
 
-      await axios.put(
-        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
+      const response = await axios.post(
+        `${LOCAL_URL_API}wp-json/pm/v1/tasks/${selectedProject.id}/update`,
         {
-          meta: {
-            tareas: updatedTasks
-          }
+          task_name: taskId,
+          new_status: 'deleted'
         },
         {
           headers: {
@@ -282,13 +289,15 @@ const ProjectDashboard = () => {
         }
       );
 
-      setSelectedProject(prev => ({
-        ...prev,
-        meta: {
-          ...prev.meta,
-          tareas: updatedTasks
-        }
-      }));
+      if (response.data) {
+        setSelectedProject(prev => ({
+          ...prev,
+          meta: {
+            ...prev.meta,
+            tareas: response.data.tareas
+          }
+        }));
+      }
     } catch (error) {
       console.error('Error al eliminar tarea:', error);
       setError('Error al eliminar la tarea');
@@ -363,8 +372,16 @@ const ProjectDashboard = () => {
                   projectParticipants.map(participant => (
                     <div key={participant.id} className="participant-card">
                       <div className="participant-avatar">
-                        {participant.avatar_urls ? (
-                          <img src={participant.avatar_urls[48]} alt={participant.name} />
+                        {participant.meta?.profile_image_url ? (
+                          <img 
+                            src={participant.meta.profile_image_url} 
+                            alt={participant.name}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.style.display = 'none';
+                              e.target.parentElement.querySelector('.avatar-placeholder').style.display = 'flex';
+                            }}
+                          />
                         ) : (
                           <div className="avatar-placeholder">
                             {participant.name.charAt(0).toUpperCase()}
@@ -385,24 +402,49 @@ const ProjectDashboard = () => {
 
             <div className="info-section">
               <h3>Tareas</h3>
+              <div className="tasks-actions">
+                <button 
+                  className="btn-create-task"
+                  onClick={() => setShowCreateTask(true)}
+                >
+                  <i className="fas fa-plus"></i> Nueva Tarea
+                </button>
+              </div>
               <div className="tasks-list">
                 {selectedProject.meta?.tareas?.length > 0 ? (
                   selectedProject.meta.tareas.map(task => (
                     <div key={task.nombre} className="task-card">
                       <div className="task-header">
                         <h4>{task.nombre}</h4>
-                        <span className={`status-badge ${task.estado}`}>
-                          {task.estado}
-                        </span>
+                        <div className="task-actions">
+                          <select
+                            className={`status-select ${task.estado}`}
+                            value={task.estado}
+                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value)}
+                          >
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_progreso">En Progreso</option>
+                            <option value="completada">Completada</option>
+                          </select>
+                          {task.estado === 'completada' && (
+                            <button 
+                              className="btn-delete-task"
+                              onClick={() => handleDeleteTask(task.nombre)}
+                              title="Eliminar tarea"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <p>{task.descripcion}</p>
                       <div className="task-meta">
                         <span className={`priority ${task.prioridad}`}>
                           {task.prioridad}
                         </span>
-                        {task.asignadoA && (
+                        {task.asignado && (
                           <span className="assigned-to">
-                            Asignado a: {task.asignadoA}
+                            Asignado a: {users.find(u => u.id.toString() === task.asignado)?.name || 'No asignado'}
                           </span>
                         )}
                       </div>
