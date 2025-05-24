@@ -254,8 +254,8 @@ const UserDashboard = () => {
   const renderProjectDetails = (project) => {
     return (
       <div className="project-details">
-        <div className="project-details-header">
-          <h2>{project.title.rendered}</h2>
+        <div className="card-header">
+          <h3>{project.title.rendered}</h3>
         </div>
 
         <div className="project-details-content">
@@ -267,15 +267,15 @@ const UserDashboard = () => {
 
             <div className="info-section">
               <h3>Tareas</h3>
-              <div className="tasks-list">
+              <div className="list">
                 {project.meta?.tareas?.length > 0 ? (
                   project.meta.tareas.map(task => (
-                    <div key={task.nombre} className="task-card">
-                      <div className="task-header">
+                    <div key={task.nombre} className="list-item">
+                      <div className="card-header">
                         <h4>{task.nombre}</h4>
                         <div className="task-actions">
                           <select
-                            className={`status-select ${task.estado}`}
+                            className={`status-badge ${task.estado}`}
                             value={task.estado}
                             onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, project.id)}
                           >
@@ -287,7 +287,7 @@ const UserDashboard = () => {
                       </div>
                       <p>{task.descripcion}</p>
                       <div className="task-meta">
-                        <span className={`priority ${task.prioridad}`}>
+                        <span className={`priority-badge ${task.prioridad}`}>
                           {task.prioridad}
                         </span>
                         {task.asignado && (
@@ -395,40 +395,40 @@ const UserDashboard = () => {
   );
 
   return (
-    <div className="user-dashboard">
+    <div className="dashboard">
       <div className="dashboard-header">
         <h1>Panel de Usuario</h1>
         <div className="user-info">
           <span>Bienvenido, {user?.user_nicename}</span>
-          <button onClick={logout} className="btn-logout">
+          <button onClick={logout} className="btn btn-danger">
             Cerrar Sesión
           </button>
         </div>
       </div>
 
       {successMessage && (
-        <div className="success-message">
+        <div className="message success-message">
           {successMessage}
         </div>
       )}
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="message error-message">{error}</div>}
 
       <div className="dashboard-tabs">
         <button 
-          className={activeTab === 'proyectos' ? 'active' : ''}
+          className={`tab-button ${activeTab === 'proyectos' ? 'active' : ''}`}
           onClick={() => setActiveTab('proyectos')}
         >
           Proyectos
         </button>
         <button 
-          className={activeTab === 'ventas' ? 'active' : ''}
+          className={`tab-button ${activeTab === 'ventas' ? 'active' : ''}`}
           onClick={() => setActiveTab('ventas')}
         >
           Ventas
         </button>
         <button 
-          className={activeTab === 'pedidos' ? 'active' : ''}
+          className={`tab-button ${activeTab === 'pedidos' ? 'active' : ''}`}
           onClick={() => setActiveTab('pedidos')}
         >
           Pedidos
@@ -442,9 +442,9 @@ const UserDashboard = () => {
             {projects.length === 0 ? (
               <p>No tienes proyectos asignados</p>
             ) : (
-              <div className="projects-grid">
+              <div className="grid">
                 {projects.map(project => (
-                  <div key={project.id} className="project-card">
+                  <div key={project.id} className="card">
                     {renderProjectDetails(project)}
                   </div>
                 ))}

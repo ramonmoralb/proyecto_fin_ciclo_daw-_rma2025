@@ -50,9 +50,9 @@ function PM_register_custom_roles() {
         'super_administrador' => array(
             'name' => 'Super Administrador',
             'capabilities' => array(
-                'read' => true,
-                'edit_posts' => true,
-                'delete_posts' => true,
+            'read' => true,
+            'edit_posts' => true,
+            'delete_posts' => true,
                 'publish_posts' => true,
                 'upload_files' => true,
                 'edit_published_posts' => true,
@@ -81,7 +81,7 @@ function PM_register_custom_roles() {
                 'promote_users' => true,
                 'remove_users' => true,
                 'add_users' => true,
-                'manage_categories' => true,
+            'manage_categories' => true,
                 'moderate_comments' => true,
                 'unfiltered_html' => true,
                 'export' => true,
@@ -131,7 +131,7 @@ function PM_register_custom_roles() {
                 'upload_files' => true,
                 'edit_published_posts' => true,
                 'delete_published_posts' => true,
-                'edit_others_posts' => true,
+            'edit_others_posts' => true,
                 'delete_others_posts' => true,
                 'read_private_posts' => true,
                 'edit_private_posts' => true,
@@ -166,7 +166,7 @@ function PM_register_custom_roles() {
                 'read' => true,
                 'edit_posts' => true,
                 'delete_posts' => true,
-                'publish_posts' => true,
+            'publish_posts' => true,
                 'upload_files' => true,
                 'edit_published_posts' => true,
                 'delete_published_posts' => true,
@@ -293,7 +293,7 @@ add_filter('editable_roles', function($roles) {
         'project_user' => array(
             'name' => 'Usuario de Proyecto',
             'capabilities' => array(
-                'read' => true,
+            'read' => true,
                 'edit_posts' => true,
                 'delete_posts' => true,
                 'publish_posts' => true,
@@ -385,7 +385,7 @@ function custom_user_registration($request) {
 
     // Crear el usuario sin rol específico primero
     $user_id = wp_create_user($username, $password, $email);
-    
+
     if (is_wp_error($user_id)) {
         return $user_id;
     }

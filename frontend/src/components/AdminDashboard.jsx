@@ -856,19 +856,19 @@ const AdminDashboard = () => {
   if (error) return <div className="error">{error}</div>;
 
   return (
-    <div className="admin-dashboard">
+    <div className="dashboard">
       <div className="dashboard-header">
         <h1>Panel de Administración</h1>
         <div className="user-info">
           <span>Bienvenido, {user?.user_nicename}</span>
-          <button onClick={logout} className="btn-logout">
+          <button onClick={logout} className="btn btn-danger">
             Cerrar Sesión
           </button>
         </div>
       </div>
       
       {successMessage && (
-        <div className="success-message">
+        <div className="message success-message">
           {successMessage}
         </div>
       )}
@@ -901,133 +901,106 @@ const AdminDashboard = () => {
       </div>
 
       <div className="dashboard-content">
-        {activeTab === 'users' ? (
+        {error && <div className="message error-message">{error}</div>}
+        {successMessage && <div className="message success-message">{successMessage}</div>}
+
+        {activeTab === 'users' && (
           <div className="users-section">
-            <div className="dashboard-actions">
-              <button 
-                className="btn-create"
-                onClick={() => setShowCreateForm(!showCreateForm)}
-              >
-                {showCreateForm ? 'Cancelar' : 'Crear Nuevo Usuario'}
+            <div className="dashboard-header">
+              <h2>Gestión de Usuarios</h2>
+              <button className="btn btn-primary" onClick={() => setShowCreateForm(!showCreateForm)}>
+                <i className="fas fa-plus"></i> Nuevo Usuario
               </button>
             </div>
 
+            <div className="list">
+              {users.map(user => (
+                <div key={user.id} className="card">
+                  <div className="card-header">
+                    <h3>{user.name}</h3>
+                    <div className="user-actions">
+                      <button 
+                        className="btn btn-danger"
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="user-details">
+                    <p><strong>Email:</strong> {user.email}</p>
+                    <p><strong>Rol:</strong> {user.roles.join(', ')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             {showCreateForm && (
-              <div className="create-user-form">
-                <h2>Crear Nuevo Usuario</h2>
-                <form onSubmit={handleCreateUser}>
-                  <div className="form-group">
-                    <label>Nombre de Usuario:</label>
-                    <input
-                      type="text"
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email:</label>
-                    <input
-                      type="email"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Contraseña:</label>
-                    <input
-                      type="password"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Rol:</label>
-                    <select
-                      value={newUser.role}
-                      onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    >
-                      <option value="project_admin">Administrador de Proyectos</option>
-                      <option value="project_user">Usuario de Proyectos</option>
-                    </select>
-                  </div>
-                  <button type="submit" className="btn-submit">Crear Usuario</button>
-                </form>
+              <div className="modal">
+                <div className="modal-content">
+                  <h2>Crear Nuevo Usuario</h2>
+                  <form onSubmit={handleCreateUser}>
+                    <div className="form-group">
+                      <label>Nombre:</label>
+                      <input
+                        type="text"
+                        value={newUser.username}
+                        onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Email:</label>
+                      <input
+                        type="email"
+                        value={newUser.email}
+                        onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Contraseña:</label>
+                      <input
+                        type="password"
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Rol:</label>
+                      <select
+                        value={newUser.role}
+                        onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                      >
+                        <option value="subscriber">Cliente</option>
+                        <option value="author">Vendedor</option>
+                        <option value="editor">Editor</option>
+                        <option value="administrator">Administrador</option>
+                      </select>
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="btn btn-success">Crear Usuario</button>
+                      <button type="button" className="btn btn-danger" onClick={() => setShowCreateForm(false)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
-
-            <div className="users-list">
-              <h2>Usuarios del Sistema</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Email</th>
-                    <th>Rol</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(user => (
-                    <tr key={user.id}>
-                      <td>{user.id}</td>
-                      <td>{user.name}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        {Array.isArray(user.roles) 
-                          ? user.roles
-                              .filter(role => role !== 'administrator')
-                              .map(role => {
-                                switch(role) {
-                                  case 'project_admin':
-                                    return 'Administrador de Proyectos';
-                                  case 'project_user':
-                                    return 'Usuario de Proyectos';
-                                  default:
-                                    return role;
-                                }
-                              })
-                              .join(', ')
-                          : typeof user.roles === 'object' 
-                            ? Object.keys(user.roles)
-                                .filter(role => role !== 'administrator')
-                                .map(role => {
-                                  switch(role) {
-                                    case 'project_admin':
-                                      return 'Administrador de Proyectos';
-                                    case 'project_user':
-                                      return 'Usuario de Proyectos';
-                                    default:
-                                      return role;
-                                  }
-                                })
-                                .join(', ')
-                            : user.roles && user.roles !== 'administrator'
-                              ? user.roles
-                              : 'Sin rol'}
-                      </td>
-                      <td>
-                        <button 
-                          className="btn-delete"
-                          onClick={() => handleDeleteUser(user.id)}
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </div>
-        ) : activeTab === 'projects' ? (
+        )}
+
+        {activeTab === 'projects' && (
           renderProjectsTab()
-        ) : activeTab === 'sales' ? (
+        )}
+
+        {activeTab === 'sales' && (
           renderSalesTab()
-        ) : (
+        )}
+
+        {activeTab === 'pedidos' && (
           renderOrdersTab()
         )}
       </div>

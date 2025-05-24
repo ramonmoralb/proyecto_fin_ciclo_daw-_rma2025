@@ -755,12 +755,12 @@ const ProjectDashboard = () => {
   if (error) return <div className="error">{error}</div>;
 
   return (
-    <div className="project-dashboard">
+    <div className="dashboard">
       <div className="dashboard-header">
         <h1>Panel de Proyectos</h1>
         <div className="user-info">
           <span>Bienvenido, {user?.user_nicename}</span>
-          <button onClick={logout} className="btn-logout">
+          <button onClick={logout} className="btn btn-danger">
             Cerrar Sesión
           </button>
         </div>
@@ -768,19 +768,19 @@ const ProjectDashboard = () => {
 
       <div className="dashboard-tabs">
         <button 
-          className={activeTab === 'projects' ? 'active' : ''}
+          className={`tab-button ${activeTab === 'projects' ? 'active' : ''}`}
           onClick={() => setActiveTab('projects')}
         >
           Proyectos
         </button>
         <button 
-          className={activeTab === 'sales' ? 'active' : ''}
+          className={`tab-button ${activeTab === 'sales' ? 'active' : ''}`}
           onClick={() => setActiveTab('sales')}
         >
           Ventas
         </button>
         <button 
-          className={activeTab === 'pedidos' ? 'active' : ''}
+          className={`tab-button ${activeTab === 'pedidos' ? 'active' : ''}`}
           onClick={() => setActiveTab('pedidos')}
         >
           Pedidos
@@ -788,15 +788,15 @@ const ProjectDashboard = () => {
       </div>
 
       <div className="dashboard-content">
-        {error && <div className="error-message">{error}</div>}
-        {successMessage && <div className="success-message">{successMessage}</div>}
+        {error && <div className="message error-message">{error}</div>}
+        {successMessage && <div className="message success-message">{successMessage}</div>}
 
         {activeTab === 'projects' ? (
           <div className="projects-overview">
             <div className="dashboard-header">
               <h1>Panel de Administración de Proyectos</h1>
               <div className="dashboard-actions">
-                <button className="btn-create" onClick={() => setShowCreateProject(true)}>
+                <button className="btn btn-primary" onClick={() => setShowCreateProject(true)}>
                   <i className="fas fa-plus"></i> Nuevo Proyecto
                 </button>
               </div>
@@ -805,23 +805,23 @@ const ProjectDashboard = () => {
             {selectedProject ? (
               renderProjectDetails()
             ) : (
-              <div className="projects-list">
+              <div className="list">
                 <h2>Proyectos</h2>
                 {projects.length === 0 ? (
                   <p>No hay proyectos disponibles</p>
                 ) : (
-                  <div className="projects-grid">
+                  <div className="grid">
                     {projects.map(project => (
                       <div 
                         key={project.id} 
-                        className="project-card"
+                        className="card"
                         onClick={() => handleProjectClick(project)}
                       >
-                        <div className="project-header">
+                        <div className="card-header">
                           <h3>{project.title.rendered}</h3>
                           <div className="project-actions">
                             <button 
-                              className="btn-delete" 
+                              className="btn btn-danger" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteProject(project.id);
@@ -843,7 +843,7 @@ const ProjectDashboard = () => {
                             <span>Tareas: {project.meta?.tareas?.length || 0}</span>
                           </div>
                         </div>
-                        <button className="btn-view-details">
+                        <button className="btn btn-primary">
                           Ver Detalles
                         </button>
                       </div>
@@ -894,8 +894,8 @@ const ProjectDashboard = () => {
                       <small>Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</small>
                     </div>
                     <div className="form-actions">
-                      <button type="submit" className="btn-submit">Crear Proyecto</button>
-                      <button type="button" className="btn-cancel" onClick={() => setShowCreateProject(false)}>
+                      <button type="submit" className="btn btn-success">Crear Proyecto</button>
+                      <button type="button" className="btn btn-danger" onClick={() => setShowCreateProject(false)}>
                         Cancelar
                       </button>
                     </div>
@@ -952,8 +952,8 @@ const ProjectDashboard = () => {
                       </select>
                     </div>
                     <div className="form-actions">
-                      <button type="submit" className="btn-submit">Crear Tarea</button>
-                      <button type="button" className="btn-cancel" onClick={() => setShowCreateTask(false)}>
+                      <button type="submit" className="btn btn-success">Crear Tarea</button>
+                      <button type="button" className="btn btn-danger" onClick={() => setShowCreateTask(false)}>
                         Cancelar
                       </button>
                     </div>
