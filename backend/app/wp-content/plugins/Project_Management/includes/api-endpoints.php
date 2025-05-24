@@ -88,7 +88,31 @@ add_action('rest_api_init', function () {
         'callback' => 'create_pedido',
         'permission_callback' => function() {
             return current_user_can('edit_posts');
-        }
+        },
+        'args' => array(
+            'cliente_id' => array(
+                'required' => true,
+                'type' => 'integer',
+                'sanitize_callback' => 'absint'
+            ),
+            'productos' => array(
+                'required' => true,
+                'type' => 'array',
+                'items' => array(
+                    'type' => 'object',
+                    'properties' => array(
+                        'producto_id' => array(
+                            'type' => 'integer',
+                            'required' => true
+                        ),
+                        'cantidad' => array(
+                            'type' => 'integer',
+                            'required' => true
+                        )
+                    )
+                )
+            )
+        )
     ));
 
     // Endpoint para obtener todos los pedidos
@@ -299,33 +323,25 @@ function delete_producto($request) {
 // Función para crear un nuevo pedido
 function create_pedido($request) {
     try {
-        // Agregar headers CORS
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-        header('Access-Control-Allow-Headers: Authorization, Content-Type');
-        header('Access-Control-Allow-Credentials: true');
+        error_log('Starting create_pedido function...');
 
-        // Manejar preflight OPTIONS request
-        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-            status_header(200);
-            exit();
+        // Verificar que el tipo de post existe
+        if (!post_type_exists('pedidos')) {
+            error_log('Post type "pedidos" does not exist');
+            return new WP_Error('post_type_not_found', 'El tipo de post "pedidos" no está registrado', array('status' => 500));
         }
 
-        // Verificar autenticación
-        if (!is_user_logged_in()) {
-            error_log('User not logged in when creating order');
-            return new WP_Error('unauthorized', 'Usuario no autenticado', array('status' => 401));
-        }
-
+        // Obtener y validar parámetros
         $params = $request->get_params();
         error_log('Received order data: ' . print_r($params, true));
-        
-        // Validar campos requeridos
+
+        // Validar cliente_id
         if (empty($params['cliente_id'])) {
             error_log('Missing cliente_id');
             return new WP_Error('missing_fields', 'El cliente es requerido', array('status' => 400));
         }
 
+        // Validar productos
         if (empty($params['productos']) || !is_array($params['productos'])) {
             error_log('Missing or invalid productos');
             return new WP_Error('missing_fields', 'Los productos son requeridos', array('status' => 400));
@@ -355,6 +371,11 @@ function create_pedido($request) {
             return $post_id;
         }
 
+        if (!$post_id) {
+            error_log('Failed to create order post');
+            return new WP_Error('post_creation_failed', 'Error al crear el pedido', array('status' => 500));
+        }
+
         // Calcular el total del pedido
         $total = 0;
         $productos_data = array();
@@ -377,13 +398,15 @@ function create_pedido($request) {
                 continue;
             }
 
-            $subtotal = $precio * $producto['cantidad'];
+            $cantidad = intval($producto['cantidad']);
+            $precio_unitario = floatval($precio);
+            $subtotal = $precio_unitario * $cantidad;
             $total += $subtotal;
 
             $productos_data[] = array(
-                'producto_id' => $producto['producto_id'],
-                'cantidad' => $producto['cantidad'],
-                'precio_unitario' => $precio,
+                'producto_id' => strval($producto['producto_id']),
+                'cantidad' => $cantidad,
+                'precio_unitario' => $precio_unitario,
                 'subtotal' => $subtotal
             );
         }
@@ -395,15 +418,39 @@ function create_pedido($request) {
         }
 
         // Guardar los campos personalizados
-        update_post_meta($post_id, 'cliente_id', $params['cliente_id']);
-        update_post_meta($post_id, 'productos', $productos_data);
-        update_post_meta($post_id, 'total', $total);
-        update_post_meta($post_id, 'estado', 'pendiente');
+        $meta_updates = array(
+            'cliente_id' => strval($params['cliente_id']),
+            'productos' => $productos_data,
+            'total' => $total,
+            'estado' => 'pendiente'
+        );
+
+        foreach ($meta_updates as $key => $value) {
+            try {
+                $update_result = update_post_meta($post_id, $key, $value);
+                if (false === $update_result) {
+                    error_log("Failed to update meta {$key} for post {$post_id}");
+                    wp_delete_post($post_id, true);
+                    return new WP_Error('meta_update_failed', "Error al guardar los datos del pedido", array('status' => 500));
+                }
+                error_log("Successfully updated meta {$key} for post {$post_id}");
+            } catch (Exception $e) {
+                error_log("Exception updating meta {$key}: " . $e->getMessage());
+                wp_delete_post($post_id, true);
+                return new WP_Error('meta_update_failed', "Error al guardar los datos del pedido: " . $e->getMessage(), array('status' => 500));
+            }
+        }
 
         error_log('Order created successfully with ID: ' . $post_id);
+        error_log('Order total: ' . $total);
 
         // Obtener y devolver el pedido creado
         $pedido = get_post($post_id);
+        if (!$pedido) {
+            error_log('Error retrieving created order');
+            return new WP_Error('retrieval_error', 'Error al recuperar el pedido creado', array('status' => 500));
+        }
+
         $response = array(
             'id' => $pedido->ID,
             'title' => $pedido->post_title,
@@ -418,10 +465,13 @@ function create_pedido($request) {
             )
         );
 
+        error_log('Returning response: ' . print_r($response, true));
+        
         return rest_ensure_response($response);
 
     } catch (Exception $e) {
         error_log('Exception in create_pedido: ' . $e->getMessage());
+        error_log('Stack trace: ' . $e->getTraceAsString());
         return new WP_Error('server_error', 'Error interno del servidor: ' . $e->getMessage(), array('status' => 500));
     }
 }

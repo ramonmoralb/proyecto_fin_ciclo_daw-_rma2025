@@ -106,6 +106,7 @@ const CreateOrder = ({ onClose, onOrderCreated }) => {
       );
 
       onOrderCreated(response.data);
+      console.log(response.data);
       onClose();
     } catch (error) {
       console.error('Error creating order:', error);

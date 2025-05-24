@@ -461,3 +461,22 @@ function pm_deactivate() {
     flush_rewrite_rules();
 }
 
+// Agregar headers CORS
+add_action('init', function() {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type');
+    header('Access-Control-Allow-Credentials: true');
+
+    // Manejar preflight OPTIONS request
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        status_header(200);
+        exit();
+    }
+});
+
+// Registrar tipos de post personalizados
+function pm_register_post_types() {
+    // ... existing code ...
+}
+
