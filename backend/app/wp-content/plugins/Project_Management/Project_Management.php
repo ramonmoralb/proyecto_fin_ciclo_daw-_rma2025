@@ -205,3 +205,120 @@ add_filter('auth_post_meta_tareas', 'PM_authorize_meta_update', 10, 6);
 add_filter('sanitize_post_meta_participantes', 'PM_sanitize_participantes', 10, 3);
 add_filter('sanitize_post_meta_tareas', 'PM_sanitize_tareas', 10, 3);
 
+// Función para actualizar los metadatos de los usuarios cuando se crea o actualiza un proyecto
+function PM_update_user_projects($post_id, $post, $update) {
+    // Solo procesar si es un proyecto
+    if ($post->post_type !== 'proyecto') {
+        return;
+    }
+
+    error_log('Actualizando proyectos para el proyecto ID: ' . $post_id);
+
+    // Obtener los participantes del proyecto
+    $participantes = get_post_meta($post_id, 'participantes', true);
+    error_log('Participantes del proyecto: ' . print_r($participantes, true));
+
+    if (!is_array($participantes)) {
+        $participantes = array();
+    }
+
+    // Obtener todos los usuarios con rol project_user
+    $users = get_users(array('role' => 'project_user'));
+    error_log('Usuarios project_user encontrados: ' . count($users));
+    
+    foreach ($users as $user) {
+        error_log('Procesando usuario ID: ' . $user->ID);
+        
+        // Obtener los proyectos actuales del usuario
+        $user_projects = get_user_meta($user->ID, 'proyectos_asignados', true);
+        if (!is_array($user_projects)) {
+            $user_projects = array();
+        }
+        error_log('Proyectos actuales del usuario: ' . print_r($user_projects, true));
+
+        // Verificar si el usuario es participante
+        $is_participant = false;
+        foreach ($participantes as $participante) {
+            if (isset($participante['id']) && intval($participante['id']) === intval($user->ID)) {
+                $is_participant = true;
+                error_log('Usuario ' . $user->ID . ' es participante del proyecto');
+                break;
+            }
+        }
+
+        if ($is_participant) {
+            // Agregar el proyecto si no existe
+            $project_exists = false;
+            foreach ($user_projects as $project) {
+                if (isset($project['id']) && intval($project['id']) === intval($post_id)) {
+                    $project_exists = true;
+                    error_log('Proyecto ya existe para el usuario ' . $user->ID);
+                    break;
+                }
+            }
+
+            if (!$project_exists) {
+                $new_project = array(
+                    'id' => $post_id,
+                    'title' => $post->post_title,
+                    'link' => get_permalink($post_id)
+                );
+                $user_projects[] = $new_project;
+                error_log('Agregando nuevo proyecto al usuario ' . $user->ID . ': ' . print_r($new_project, true));
+                
+                // Actualizar el meta del usuario
+                $update_result = update_user_meta($user->ID, 'proyectos_asignados', $user_projects);
+                error_log('Resultado de actualización para usuario ' . $user->ID . ': ' . ($update_result ? 'exitoso' : 'fallido'));
+                
+                // Verificar que se actualizó correctamente
+                $updated_projects = get_user_meta($user->ID, 'proyectos_asignados', true);
+                error_log('Proyectos actualizados del usuario: ' . print_r($updated_projects, true));
+            }
+        } else {
+            // Remover el proyecto si el usuario ya no es participante
+            $original_count = count($user_projects);
+            $user_projects = array_filter($user_projects, function($project) use ($post_id) {
+                return isset($project['id']) && intval($project['id']) !== intval($post_id);
+            });
+            
+            if (count($user_projects) !== $original_count) {
+                error_log('Removiendo proyecto del usuario ' . $user->ID);
+                update_user_meta($user->ID, 'proyectos_asignados', $user_projects);
+            }
+        }
+    }
+}
+
+// Agregar hooks para la creación y actualización de proyectos
+add_action('wp_insert_post', 'PM_update_user_projects', 10, 3);
+add_action('post_updated', 'PM_update_user_projects', 10, 3);
+
+// Función para limpiar los metadatos de los usuarios cuando se elimina un proyecto
+function PM_cleanup_user_projects($post_id) {
+    $post = get_post($post_id);
+    if ($post->post_type !== 'proyecto') {
+        return;
+    }
+
+    error_log('Limpiando proyectos para el proyecto eliminado ID: ' . $post_id);
+
+    $users = get_users(array('role' => 'project_user'));
+    foreach ($users as $user) {
+        $user_projects = get_user_meta($user->ID, 'proyectos_asignados', true);
+        if (is_array($user_projects)) {
+            $original_count = count($user_projects);
+            $user_projects = array_filter($user_projects, function($project) use ($post_id) {
+                return isset($project['id']) && intval($project['id']) !== intval($post_id);
+            });
+            
+            if (count($user_projects) !== $original_count) {
+                error_log('Removiendo proyecto eliminado del usuario ' . $user->ID);
+                update_user_meta($user->ID, 'proyectos_asignados', $user_projects);
+            }
+        }
+    }
+}
+
+// Agregar hook para la eliminación de proyectos
+add_action('before_delete_post', 'PM_cleanup_user_projects');
+
