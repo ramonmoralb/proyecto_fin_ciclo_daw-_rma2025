@@ -138,7 +138,7 @@ add_action('rest_api_init', function () {
         'methods' => 'DELETE',
         'callback' => 'delete_pedido',
         'permission_callback' => function() {
-            return current_user_can('edit_posts');
+            return current_user_can('delete_posts');
         }
     ));
 });
@@ -525,68 +525,107 @@ function get_pedidos() {
 
 // Función para actualizar estado del pedido
 function update_pedido_status($request) {
-    // Agregar headers CORS
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: PUT, OPTIONS');
-    header('Access-Control-Allow-Headers: Authorization, Content-Type');
-    header('Access-Control-Allow-Credentials: true');
+    try {
+        error_log('Starting update_pedido_status function...');
+        
+        // Verificar autenticación
+        if (!is_user_logged_in()) {
+            error_log('User is not logged in');
+            return new WP_Error('unauthorized', 'Usuario no autenticado', array('status' => 401));
+        }
 
-    // Manejar preflight OPTIONS request
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        status_header(200);
-        exit();
+        // Verificar permisos
+        if (!current_user_can('edit_posts')) {
+            error_log('User does not have required permissions');
+            return new WP_Error('forbidden', 'No tiene permisos para actualizar pedidos', array('status' => 403));
+        }
+
+        $id = $request['id'];
+        $params = $request->get_params();
+        
+        error_log('Updating order ' . $id . ' with params: ' . print_r($params, true));
+        
+        // Verificar que el pedido existe
+        $pedido = get_post($id);
+        if (!$pedido || $pedido->post_type !== 'pedidos') {
+            error_log('Order not found or invalid type: ' . $id);
+            return new WP_Error('not_found', 'Pedido no encontrado', array('status' => 404));
+        }
+
+        if (empty($params['estado'])) {
+            error_log('Missing estado parameter');
+            return new WP_Error('missing_status', 'El estado es requerido', array('status' => 400));
+        }
+
+        // Validar que el estado sea válido
+        $estados_validos = array('pendiente', 'servido');
+        if (!in_array($params['estado'], $estados_validos)) {
+            error_log('Invalid status: ' . $params['estado']);
+            return new WP_Error('invalid_status', 'Estado no válido', array('status' => 400));
+        }
+
+        // Actualizar el estado
+        $update_result = update_post_meta($id, 'estado', $params['estado']);
+        
+        if ($update_result === false) {
+            error_log('Failed to update order status');
+            return new WP_Error('update_failed', 'Error al actualizar el estado del pedido', array('status' => 500));
+        }
+
+        error_log('Order status updated successfully');
+        
+        return array(
+            'id' => $id,
+            'estado' => $params['estado'],
+            'message' => 'Estado del pedido actualizado correctamente'
+        );
+
+    } catch (Exception $e) {
+        error_log('Exception in update_pedido_status: ' . $e->getMessage());
+        error_log('Stack trace: ' . $e->getTraceAsString());
+        return new WP_Error('server_error', 'Error interno del servidor: ' . $e->getMessage(), array('status' => 500));
     }
-
-    $id = $request['id'];
-    $params = $request->get_params();
-    
-    if (!get_post($id)) {
-        return new WP_Error('not_found', 'Pedido no encontrado', array('status' => 404));
-    }
-
-    if (empty($params['estado'])) {
-        return new WP_Error('missing_status', 'El estado es requerido', array('status' => 400));
-    }
-
-    // Validar que el estado sea válido
-    $estados_validos = array('pendiente', 'servido');
-    if (!in_array($params['estado'], $estados_validos)) {
-        return new WP_Error('invalid_status', 'Estado no válido', array('status' => 400));
-    }
-
-    update_post_meta($id, 'estado', $params['estado']);
-
-    return array(
-        'id' => $id,
-        'estado' => $params['estado']
-    );
 }
 
 // Función para eliminar un pedido
 function delete_pedido($request) {
-    // Agregar headers CORS
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Authorization, Content-Type');
-    header('Access-Control-Allow-Credentials: true');
+    try {
+        error_log('Starting delete_pedido function...');
+        
+        $id = $request['id'];
+        error_log('Attempting to delete order with ID: ' . $id);
+        
+        // Verificar que el pedido existe
+        $pedido = get_post($id);
+        if (!$pedido || $pedido->post_type !== 'pedidos') {
+            error_log('Order not found or invalid type: ' . $id);
+            return new WP_Error('not_found', 'Pedido no encontrado', array('status' => 404));
+        }
 
-    // Manejar preflight OPTIONS request
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        status_header(200);
-        exit();
+        // Verificar permisos
+        if (!current_user_can('delete_posts')) {
+            error_log('User does not have permission to delete orders');
+            return new WP_Error('permission_denied', 'No tiene permisos para eliminar pedidos', array('status' => 403));
+        }
+
+        // Eliminar el pedido
+        $result = wp_delete_post($id, true);
+        
+        if (!$result) {
+            error_log('Failed to delete order: ' . $id);
+            return new WP_Error('delete_failed', 'Error al eliminar el pedido', array('status' => 500));
+        }
+
+        error_log('Order deleted successfully: ' . $id);
+        return array(
+            'success' => true,
+            'message' => 'Pedido eliminado correctamente',
+            'id' => $id
+        );
+
+    } catch (Exception $e) {
+        error_log('Exception in delete_pedido: ' . $e->getMessage());
+        error_log('Stack trace: ' . $e->getTraceAsString());
+        return new WP_Error('server_error', 'Error interno del servidor: ' . $e->getMessage(), array('status' => 500));
     }
-
-    $id = $request['id'];
-    
-    if (!get_post($id)) {
-        return new WP_Error('not_found', 'Pedido no encontrado', array('status' => 404));
-    }
-
-    $result = wp_delete_post($id, true);
-
-    if (!$result) {
-        return new WP_Error('delete_failed', 'Error al eliminar el pedido', array('status' => 500));
-    }
-
-    return array('success' => true);
 } 

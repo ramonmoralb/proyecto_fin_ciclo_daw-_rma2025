@@ -606,23 +606,68 @@ const AdminDashboard = () => {
 
   const handleOrderStatusChange = async (orderId, newStatus) => {
     try {
-      const order = orders.find(o => o.id === orderId);
-      if (!order) return;
+      const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        setError('No hay token de autenticación');
+        return;
+      }
 
-      const response = await axios.put(`${LOCAL_URL_API}/wp-json/pm/v1/pedidos/${orderId}`, {
-        ...order,
-        estado: newStatus
-      });
+      const response = await axios.put(
+        `${LOCAL_URL_API}wp-json/pm/v1/pedidos/${orderId}`,
+        { estado: newStatus },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      setOrders(orders.map(o => o.id === orderId ? response.data : o));
+      if (response.data) {
+        setOrders(orders.map(o => 
+          o.id === orderId 
+            ? { ...o, meta: { ...o.meta, estado: newStatus } }
+            : o
+        ));
+        setSuccessMessage('Estado del pedido actualizado correctamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
     } catch (error) {
       console.error('Error updating order status:', error);
-      setError('Error al actualizar el estado del pedido');
+      setError(error.response?.data?.message || 'Error al actualizar el estado del pedido');
     }
   };
 
   const handleOrderCreated = (newOrder) => {
     setOrders([...orders, newOrder]);
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        setError('No hay token de autenticación');
+        return;
+      }
+
+      const response = await axios.delete(
+        `${LOCAL_URL_API}wp-json/pm/v1/pedidos/${orderId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setOrders(orders.filter(order => order.id !== orderId));
+        setSuccessMessage('Pedido eliminado correctamente');
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      setError(error.response?.data?.message || 'Error al eliminar el pedido');
+    }
   };
 
   const renderProjectsTab = () => (
@@ -771,11 +816,30 @@ const AdminDashboard = () => {
 
       <div className="orders-content">
         {orders.map(order => (
-          <OrderCard 
-            key={order.id} 
-            order={order}
-            onStatusChange={handleOrderStatusChange}
-          />
+          <div key={order.id} className="bg-white p-4 rounded-lg shadow mb-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-semibold">{order.title}</h3>
+                <p className="text-gray-600">Cliente: {order.meta.cliente.nombre}</p>
+                <p className="text-gray-600">Total: ${order.meta.total}</p>
+                <p className="text-gray-600">Estado: {order.meta.estado}</p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleOrderStatusChange(order.id, order.meta.estado === 'pendiente' ? 'servido' : 'pendiente')}
+                  className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                >
+                  {order.meta.estado === 'pendiente' ? 'Marcar como Servido' : 'Marcar como Pendiente'}
+                </button>
+                <button
+                  onClick={() => handleDeleteOrder(order.id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
 
