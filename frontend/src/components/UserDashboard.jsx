@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import '../styles/UserDashboard.css';
 
 const UserDashboard = () => {
-  const { userRole, userName, userEmail } = useAuth();
+  const { userRole, userName, userEmail, userId } = useAuth();
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [error, setError] = useState('');
@@ -17,12 +17,16 @@ const UserDashboard = () => {
   });
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (userRole === 'project_user') {
+      fetchProjects();
+    }
+  }, [userRole]);
 
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
+      console.log('Fetching projects for user:', { userId, userEmail });
+
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/wp/v2/proyectos/`,
         {
@@ -33,10 +37,24 @@ const UserDashboard = () => {
         }
       );
 
+      console.log('All projects:', response.data);
+
       // Filtrar proyectos donde el usuario es participante
-      const userProjects = response.data.filter(project => 
-        project.meta?.participantes?.includes(userEmail)
-      );
+      const userProjects = response.data.filter(project => {
+        const participantes = project.meta?.participantes || [];
+        console.log('Project participants:', participantes);
+        
+        // Verificar si el usuario es participante por ID o email
+        const isParticipant = participantes.some(participant => 
+          (participant.id && parseInt(participant.id) === parseInt(userId)) ||
+          (participant.email && participant.email === userEmail)
+        );
+        
+        console.log('Is user participant:', isParticipant);
+        return isParticipant;
+      });
+
+      console.log('Filtered user projects:', userProjects);
       setProjects(userProjects);
     } catch (error) {
       console.error('Error al cargar proyectos:', error);

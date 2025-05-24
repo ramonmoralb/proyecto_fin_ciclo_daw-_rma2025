@@ -16,6 +16,7 @@ const Login = () => {
     setLoading(true);
 
     try {
+      // 1. Obtener el token
       const response = await fetch(`${LOCAL_URL_API}wp-json/jwt-auth/v1/token`, {
         method: 'POST',
         headers: {
@@ -33,9 +34,34 @@ const Login = () => {
         throw new Error(data.message || 'Error al iniciar sesión');
       }
 
+      // 2. Guardar el token
       localStorage.setItem('jwtToken', data.token);
-      navigate('/dashboard');
+
+      // 3. Obtener información del usuario
+      const userResponse = await fetch(`${LOCAL_URL_API}wp-json/wp/v2/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${data.token}`
+        }
+      });
+
+      if (!userResponse.ok) {
+        throw new Error('Error al obtener información del usuario');
+      }
+
+      const userData = await userResponse.json();
+      console.log('User data:', userData);
+
+      // 4. Redirigir según el rol
+      if (userData.roles.includes('project_user')) {
+        navigate('/user-dashboard');
+      } else if (userData.roles.includes('administrator') || userData.roles.includes('project_admin')) {
+        navigate('/dashboard');
+      } else {
+        throw new Error('Rol de usuario no válido');
+      }
+
     } catch (error) {
+      console.error('Login error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
