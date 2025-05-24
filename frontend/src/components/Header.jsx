@@ -13,8 +13,10 @@ const Header = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchUserProfile();
+    } else {
+      setProfileImage(null);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userName]);
 
   const fetchUserProfile = async () => {
     try {
@@ -30,13 +32,17 @@ const Header = () => {
 
       if (response.data.meta?.profile_image_url) {
         setProfileImage(response.data.meta.profile_image_url);
+      } else {
+        setProfileImage(null);
       }
     } catch (error) {
       console.error('Error al cargar la imagen de perfil:', error);
+      setProfileImage(null);
     }
   };
 
   const handleLogout = () => {
+    setProfileImage(null);
     logout();
     navigate("/login");
   };
