@@ -129,6 +129,7 @@ const ProjectDashboard = () => {
         {
           title: newProject.title,
           content: newProject.description,
+          status: 'publish',
           meta: {
             participantes: newProject.assignedUsers.map(id => id.toString()),
             tareas: []
