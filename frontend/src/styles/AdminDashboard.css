@@ -769,4 +769,218 @@ th {
   .project-actions .btn-delete {
     width: 100%;
   }
+}
+
+/* Sales Section Styles */
+.sales-overview {
+  padding: 20px;
+}
+
+.sales-header {
+  margin-bottom: 30px;
+}
+
+.sales-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.clients-section,
+.products-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.clients-grid,
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.client-card,
+.product-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.card-header h4 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.card-content {
+  color: #666;
+}
+
+.client-details,
+.product-details {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.client-details p,
+.product-details p {
+  margin: 5px 0;
+  font-size: 0.9em;
+}
+
+.btn-create {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.btn-create:hover {
+  background-color: #45a049;
+}
+
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.btn-delete:hover {
+  background-color: #c82333;
+}
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #666;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1em;
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-submit {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-submit:hover {
+  background-color: #45a049;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background-color: #5a6268;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sales-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .clients-grid,
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+  }
 } 

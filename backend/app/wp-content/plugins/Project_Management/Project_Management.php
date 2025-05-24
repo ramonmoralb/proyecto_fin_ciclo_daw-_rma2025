@@ -1,14 +1,10 @@
 <?php
-/*
-Plugin Name: Project Management
-Plugin URI: 
-Description: Un plugin para gestión de proyectos en WordPress.
-Version: 1.0.0
-Author: Ramón Moreno 
-Author URI: https://tusitio.com
-License: GPL2
-Text Domain: project-management
-*/
+/**
+ * Plugin Name: Project Management
+ * Description: Plugin para gestión de proyectos
+ * Version: 1.0
+ * Author: Ramon
+ */
 
 // Evitar el acceso directo al archivo              
 if (!defined('ABSPATH')) {
@@ -23,6 +19,9 @@ define('PM_PLUGIN_VERSION', '1.0.0');
 // Incluir el archivo para el registro de usuarios
 include_once PM_PLUGIN_DIR . 'includes/PM_custon_user_register.php';
 
+// Incluir archivos necesarios
+require_once PM_PLUGIN_DIR . 'includes/custom-post-types.php';
+require_once PM_PLUGIN_DIR . 'includes/api-endpoints.php';
 
 // =============================================
 // REGISTRO DE POST TYPE Y META CAMPOS
@@ -446,5 +445,19 @@ function PM_update_task_status($request) {
         'message' => 'Tarea actualizada correctamente',
         'tareas' => $tareas
     );
+}
+
+// Activar el plugin
+register_activation_hook(__FILE__, 'pm_activate');
+function pm_activate() {
+    // Flush rewrite rules
+    flush_rewrite_rules();
+}
+
+// Desactivar el plugin
+register_deactivation_hook(__FILE__, 'pm_deactivate');
+function pm_deactivate() {
+    // Flush rewrite rules
+    flush_rewrite_rules();
 }
 

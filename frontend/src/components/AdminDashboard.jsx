@@ -35,6 +35,23 @@ const AdminDashboard = () => {
     content: '',
     status: 'publish'
   });
+  const [clients, setClients] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [showCreateProduct, setShowCreateProduct] = useState(false);
+  const [newClient, setNewClient] = useState({
+    title: '',
+    description: '',
+    email: '',
+    telefono: '',
+    direccion: ''
+  });
+  const [newProduct, setNewProduct] = useState({
+    title: '',
+    description: '',
+    precio: '',
+    stock: ''
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -49,6 +66,8 @@ const AdminDashboard = () => {
 
     fetchUsers();
     fetchProjects();
+    fetchClients();
+    fetchProducts();
   }, [userRole, isAuthenticated, navigate]);
 
   const fetchUsers = async () => {
@@ -66,11 +85,9 @@ const AdminDashboard = () => {
       const filteredUsers = response.data.filter(user => 
         !user.roles?.includes('administrator')
       );
-      console.log('Datos de usuarios filtrados:', filteredUsers);
       setUsers(filteredUsers);
       setLoading(false);
     } catch (error) {
-      console.error('Error completo:', error);
       setError(error.response?.data?.message || 'Error al cargar los usuarios');
       setLoading(false);
     }
@@ -92,6 +109,46 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error al cargar proyectos:', error);
       setError('Error al cargar los proyectos');
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/clientes`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      console.log('Clientes recibidos:', response.data);
+      setClients(response.data);
+    } catch (error) {
+      console.error('Error al cargar clientes:', error);
+      setError('Error al cargar los clientes');
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/productos`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      console.log('Productos recibidos:', response.data);
+      setProducts(response.data);
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+      setError('Error al cargar los productos');
     }
   };
 
@@ -370,6 +427,156 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const clientData = {
+        title: newClient.title,
+        content: newClient.description,
+        meta: {
+          email: newClient.email,
+          telefono: newClient.telefono,
+          direccion: newClient.direccion
+        }
+      };
+      
+      const response = await axios.post(
+        `${LOCAL_URL_API}wp-json/pm/v1/clientes`,
+        clientData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+        
+      if (response.data) {
+        setShowCreateClient(false);
+        setNewClient({
+          title: '',
+          description: '',
+          email: '',
+          telefono: '',
+          direccion: ''
+        });
+        await fetchClients();
+        setSuccessMessage('Cliente creado exitosamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (error) {
+      setError('Error al crear el cliente');
+    }
+  };
+
+  const handleCreateProduct = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('jwtToken');
+      
+      const productData = {
+        title: newProduct.title,
+        content: newProduct.description,
+        meta: {
+          precio: parseFloat(newProduct.precio) || 0,
+          stock: parseInt(newProduct.stock) || 0
+        },
+        status: 'publish'
+      };
+      
+      console.log('Enviando datos del producto:', productData);
+      
+      const response = await axios.post(
+        `${LOCAL_URL_API}wp-json/pm/v1/productos`,
+        productData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Respuesta del servidor:', response.data);
+
+      if (response.data) {
+        setShowCreateProduct(false);
+        setNewProduct({
+          title: '',
+          description: '',
+          precio: '',
+          stock: ''
+        });
+        await fetchProducts();
+        setSuccessMessage('Producto creado exitosamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Error completo al crear producto:', error);
+      if (error.response) {
+        console.error('Datos del error:', error.response.data);
+      }
+      setError('Error al crear el producto');
+    }
+  };
+
+  const handleDeleteClient = async (clientId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.delete(
+        `${LOCAL_URL_API}wp-json/pm/v1/clientes/${clientId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        fetchClients();
+        setSuccessMessage('Cliente eliminado exitosamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error);
+      setError('Error al eliminar el cliente');
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.delete(
+        `${LOCAL_URL_API}wp-json/pm/v1/productos/${productId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        fetchProducts();
+        setSuccessMessage('Producto eliminado exitosamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Error al eliminar producto:', error);
+      setError('Error al eliminar el producto');
+    }
+  };
+
   const renderProjectsTab = () => (
     <div className="projects-overview">
       <div className="projects-header">
@@ -458,6 +665,87 @@ const AdminDashboard = () => {
     </div>
   );
 
+  const renderSalesTab = () => (
+    <div className="sales-overview">
+      <div className="sales-header">
+        <h2>Gestión de Ventas</h2>
+      </div>
+
+      <div className="sales-sections">
+        <div className="clients-section">
+          <div className="section-header">
+            <h3>Clientes</h3>
+            <button 
+              className="btn-create"
+              onClick={() => setShowCreateClient(true)}
+            >
+              <i className="fas fa-plus"></i> Nuevo Cliente
+            </button>
+          </div>
+
+          <div className="clients-grid">
+            {clients.map(client => (
+              <div key={client.id} className="client-card">
+                <div className="card-header">
+                  <h4>{client.title.rendered || client.title}</h4>
+                  <button 
+                    className="btn-delete"
+                    onClick={() => handleDeleteClient(client.id)}
+                  >
+                    <i className="fas fa-trash"></i>
+                  </button>
+                </div>
+                <div className="card-content">
+                  <p>{client.content?.rendered || client.description}</p>
+                  <div className="client-details">
+                    <p><strong>Email:</strong> {client.meta?.email || ''}</p>
+                    <p><strong>Teléfono:</strong> {client.meta?.telefono || ''}</p>
+                    <p><strong>Dirección:</strong> {client.meta?.direccion || ''}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="products-section">
+          <div className="section-header">
+            <h3>Productos</h3>
+            <button 
+              className="btn-create"
+              onClick={() => setShowCreateProduct(true)}
+            >
+              <i className="fas fa-plus"></i> Nuevo Producto
+            </button>
+          </div>
+
+          <div className="products-grid">
+            {products.map(product => (
+              <div key={product.id} className="product-card">
+                <div className="card-header">
+                  <h4>{product.title.rendered || product.title}</h4>
+                  <button 
+                    className="btn-delete"
+                    onClick={() => handleDeleteProduct(product.id)}
+                  >
+                    <i className="fas fa-trash"></i>
+                  </button>
+                </div>
+                <div className="card-content">
+                  <p>{product.content?.rendered || product.description}</p>
+                  <div className="product-details">
+                    <p><strong>Precio:</strong> ${product.meta?.precio || 0}</p>
+                    <p><strong>Stock:</strong> {product.meta?.stock || 0}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) return <div className="loading">Cargando...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -483,6 +771,12 @@ const AdminDashboard = () => {
           onClick={() => setActiveTab('projects')}
         >
           Proyectos
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'sales' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sales')}
+        >
+          Ventas
         </button>
       </div>
 
@@ -609,8 +903,10 @@ const AdminDashboard = () => {
               </table>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'projects' ? (
           renderProjectsTab()
+        ) : (
+          renderSalesTab()
         )}
       </div>
 
@@ -698,6 +994,114 @@ const AdminDashboard = () => {
               <div className="form-actions">
                 <button type="submit" className="btn-submit">Crear Tarea</button>
                 <button type="button" className="btn-cancel" onClick={() => setShowCreateTask(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateClient && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Crear Nuevo Cliente</h2>
+            <form onSubmit={handleCreateClient}>
+              <div className="form-group">
+                <label>Nombre:</label>
+                <input
+                  type="text"
+                  value={newClient.title}
+                  onChange={(e) => setNewClient({...newClient, title: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Descripción:</label>
+                <textarea
+                  value={newClient.description}
+                  onChange={(e) => setNewClient({...newClient, description: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Email:</label>
+                <input
+                  type="email"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient({...newClient, email: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Teléfono:</label>
+                <input
+                  type="tel"
+                  value={newClient.telefono}
+                  onChange={(e) => setNewClient({...newClient, telefono: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Dirección:</label>
+                <input
+                  type="text"
+                  value={newClient.direccion}
+                  onChange={(e) => setNewClient({...newClient, direccion: e.target.value})}
+                />
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn-submit">Crear Cliente</button>
+                <button type="button" className="btn-cancel" onClick={() => setShowCreateClient(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateProduct && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Crear Nuevo Producto</h2>
+            <form onSubmit={handleCreateProduct}>
+              <div className="form-group">
+                <label>Nombre:</label>
+                <input
+                  type="text"
+                  value={newProduct.title}
+                  onChange={(e) => setNewProduct({...newProduct, title: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Descripción:</label>
+                <textarea
+                  value={newProduct.description}
+                  onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Precio:</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newProduct.precio}
+                  onChange={(e) => setNewProduct({...newProduct, precio: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Stock:</label>
+                <input
+                  type="number"
+                  value={newProduct.stock}
+                  onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn-submit">Crear Producto</button>
+                <button type="button" className="btn-cancel" onClick={() => setShowCreateProduct(false)}>
                   Cancelar
                 </button>
               </div>
