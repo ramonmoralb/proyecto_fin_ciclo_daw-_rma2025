@@ -15,9 +15,12 @@ const UserDashboard = () => {
     description: '',
     severity: 'medium'
   });
+  const [successMessage, setSuccessMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('tareas');
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState('all');
 
   useEffect(() => {
-    if (userRole === 'project_user') {
+    if (userRole === 'project_user' || userRole === 'project_admin' || userRole === 'super_administrador') {
       fetchProjects();
     }
   }, [userRole]);
@@ -25,7 +28,27 @@ const UserDashboard = () => {
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
-      console.log('Fetching projects for user:', { userId, userEmail });
+      console.log('Fetching projects for user:', { userEmail, userRole });
+      
+      // Obtener el ID del usuario directamente del contexto
+      const userResponse = await axios.get(
+        `${LOCAL_URL_API}wp-json/wp/v2/users/me`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Current user data:', userResponse.data);
+      const currentUserId = userResponse.data.id;
+
+      if (!currentUserId) {
+        console.error('ID de usuario no encontrado');
+        setError('Error: ID de usuario no encontrado');
+        return;
+      }
 
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/wp/v2/proyectos/`,
@@ -37,49 +60,54 @@ const UserDashboard = () => {
         }
       );
 
-      console.log('All projects:', response.data);
+      console.log('All projects from API:', response.data);
 
-      // Filtrar proyectos donde el usuario es participante
-      const userProjects = response.data.filter(project => {
-        const participantes = project.meta?.participantes || [];
-        console.log('Project participants:', participantes);
-        
-        // Verificar si el usuario es participante por ID o email
-        const isParticipant = participantes.some(participant => 
-          (participant.id && parseInt(participant.id) === parseInt(userId)) ||
-          (participant.email && participant.email === userEmail)
-        );
-        
-        console.log('Is user participant:', isParticipant);
-        return isParticipant;
-      });
+      // Filtrar proyectos según el rol del usuario
+      let userProjects;
+      if (userRole === 'project_user') {
+        // Para project_user, solo mostrar proyectos donde es participante
+        userProjects = response.data.filter(project => {
+          const participantes = project.meta?.participantes || [];
+          return participantes.some(participantId => 
+            parseInt(participantId) === parseInt(currentUserId)
+          );
+        });
+      } else {
+        // Para administradores, mostrar todos los proyectos
+        userProjects = response.data;
+      }
 
       console.log('Filtered user projects:', userProjects);
       setProjects(userProjects);
     } catch (error) {
       console.error('Error al cargar proyectos:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
       setError('Error al cargar los proyectos');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateTaskStatus = async (taskId, newStatus) => {
+  const handleUpdateTaskStatus = async (taskId, newStatus, projectId) => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('jwtToken');
-      const updatedTasks = selectedProject.meta.tareas.map(task => {
-        if (task.id === taskId) {
-          return { ...task, status: newStatus };
-        }
-        return task;
+      
+      console.log('Updating task with data:', {
+        projectId,
+        taskId,
+        newStatus,
+        userRole
       });
 
-      await axios.put(
-        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${selectedProject.id}`,
+      // Actualizar en el backend usando el endpoint personalizado
+      const response = await axios.post(
+        `${LOCAL_URL_API}wp-json/pm/v1/tasks/${projectId}/update`,
         {
-          meta: {
-            tareas: updatedTasks
-          }
+          task_name: taskId,
+          new_status: newStatus
         },
         {
           headers: {
@@ -89,23 +117,42 @@ const UserDashboard = () => {
         }
       );
 
-      // Actualizar el estado local
-      setSelectedProject(prev => ({
-        ...prev,
-        meta: {
-          ...prev.meta,
-          tareas: updatedTasks
-        }
-      }));
+      console.log('Update response:', response.data);
+
+      // Actualizar el estado local con la respuesta del servidor
+      setProjects(prevProjects => 
+        prevProjects.map(p => 
+          p.id === projectId 
+            ? {
+                ...p,
+                meta: {
+                  ...p.meta,
+                  tareas: response.data.tareas
+                }
+              }
+            : p
+        )
+      );
+
+      setSuccessMessage(`Estado de la tarea actualizado a: ${newStatus}`);
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Error al actualizar tarea:', error);
-      setError('Error al actualizar la tarea');
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Error status:', error.response.status);
+        console.error('Error headers:', error.response.headers);
+      }
+      setError('Error al actualizar la tarea: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleReportProblem = async (e) => {
     e.preventDefault();
     try {
+      setLoading(true);
       const token = localStorage.getItem('jwtToken');
       const task = selectedProject.meta.tareas.find(t => t.id === reportProblem.taskId);
       
@@ -114,19 +161,25 @@ const UserDashboard = () => {
         return;
       }
 
+      const newProblem = {
+        id: Date.now(),
+        description: reportProblem.description,
+        severity: reportProblem.severity,
+        reportedBy: userName,
+        reportedAt: new Date().toISOString(),
+        status: 'pending',
+        assignedTo: null,
+        comments: []
+      };
+
       const updatedTask = {
         ...task,
         problems: [
           ...(task.problems || []),
-          {
-            id: Date.now(),
-            description: reportProblem.description,
-            severity: reportProblem.severity,
-            reportedBy: userName,
-            reportedAt: new Date().toISOString(),
-            status: 'pending'
-          }
-        ]
+          newProblem
+        ],
+        lastUpdatedBy: userName,
+        lastUpdatedAt: new Date().toISOString()
       };
 
       const updatedTasks = selectedProject.meta.tareas.map(t => 
@@ -148,7 +201,6 @@ const UserDashboard = () => {
         }
       );
 
-      // Actualizar el estado local
       setSelectedProject(prev => ({
         ...prev,
         meta: {
@@ -157,7 +209,9 @@ const UserDashboard = () => {
         }
       }));
 
-      // Limpiar el formulario
+      setSuccessMessage('Problema reportado correctamente');
+      setTimeout(() => setSuccessMessage(''), 3000);
+
       setReportProblem({
         taskId: '',
         description: '',
@@ -166,12 +220,37 @@ const UserDashboard = () => {
     } catch (error) {
       console.error('Error al reportar problema:', error);
       setError('Error al reportar el problema');
+    } finally {
+      setLoading(false);
     }
   };
 
   if (loading) {
     return <div className="loading">Cargando...</div>;
   }
+
+  // Obtener todas las tareas de todos los proyectos
+  const allTasks = projects.flatMap(project => {
+    const projectTasks = (project.meta?.tareas || []).map(task => ({
+      ...task,
+      projectTitle: project.title.rendered,
+      projectId: project.id,
+      title: task.title || task.nombre,
+      description: task.description || task.descripcion,
+      status: task.status || task.estado
+    }));
+    return projectTasks;
+  });
+
+  // Filtrar tareas por proyecto seleccionado
+  const filteredTasks = selectedProjectFilter === 'all' 
+    ? allTasks 
+    : allTasks.filter(task => task.projectId === parseInt(selectedProjectFilter));
+
+  // Filtrar tareas por estado
+  const pendingTasks = filteredTasks.filter(task => task.status === 'pendiente');
+  const inProgressTasks = filteredTasks.filter(task => task.status === 'en_progreso');
+  const completedTasks = filteredTasks.filter(task => task.status === 'completada');
 
   return (
     <div className="user-dashboard">
@@ -183,67 +262,213 @@ const UserDashboard = () => {
         </div>
       </div>
 
-      <div className="dashboard-content">
-        <div className="projects-list">
-          <h2>Mis Proyectos</h2>
-          {projects.map(project => (
-            <div
-              key={project.id}
-              className={`project-card ${selectedProject?.id === project.id ? 'selected' : ''}`}
-              onClick={() => setSelectedProject(project)}
-            >
-              <h3>{project.title.rendered}</h3>
-              <p>{project.content.rendered}</p>
-            </div>
-          ))}
+      {successMessage && (
+        <div className="success-message">
+          {successMessage}
         </div>
+      )}
 
-        {selectedProject && (
-          <div className="project-details">
-            <h2>{selectedProject.title.rendered}</h2>
-            <div className="tasks-container">
-              <h3>Tareas Asignadas</h3>
-              {selectedProject.meta?.tareas?.map(task => (
-                <div key={task.id} className="task-card">
-                  <h4>{task.title}</h4>
-                  <p>{task.description}</p>
-                  <div className="task-status">
-                    <select
-                      value={task.status}
-                      onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
-                    >
-                      <option value="pendiente">Pendiente</option>
-                      <option value="en_progreso">En Progreso</option>
-                      <option value="completada">Completada</option>
-                    </select>
-                  </div>
-                  
-                  {task.problems && task.problems.length > 0 && (
-                    <div className="task-problems">
-                      <h5>Problemas Reportados:</h5>
-                      {task.problems.map(problem => (
-                        <div key={problem.id} className="problem-card">
-                          <p className={`severity ${problem.severity}`}>
-                            Severidad: {problem.severity}
-                          </p>
-                          <p>{problem.description}</p>
-                          <small>
-                            Reportado por {problem.reportedBy} el {new Date(problem.reportedAt).toLocaleDateString()}
-                          </small>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+      {error && <div className="error-message">{error}</div>}
 
-                  <button
-                    className="btn-report"
-                    onClick={() => setReportProblem(prev => ({ ...prev, taskId: task.id }))}
-                  >
-                    Reportar Problema
-                  </button>
-                </div>
-              ))}
+      <div className="dashboard-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'tareas' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tareas')}
+        >
+          Mis Tareas
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'proyectos' ? 'active' : ''}`}
+          onClick={() => setActiveTab('proyectos')}
+        >
+          Mis Proyectos
+        </button>
+      </div>
+
+      <div className="dashboard-content">
+        {activeTab === 'tareas' ? (
+          <div className="tasks-container">
+            <div className="project-filter">
+              <label htmlFor="project-select">Filtrar por proyecto:</label>
+              <select
+                id="project-select"
+                value={selectedProjectFilter}
+                onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                className="project-select"
+              >
+                <option value="all">Todos los proyectos</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.title.rendered}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            <div className="tasks-board">
+              <div className="tasks-column">
+                <h2>Pendientes ({pendingTasks.length})</h2>
+                <div className="tasks-list">
+                  {pendingTasks.length === 0 ? (
+                    <p className="no-tasks">No hay tareas pendientes</p>
+                  ) : (
+                    pendingTasks.map(task => (
+                      <div key={task.nombre} className="task-card pending">
+                        <h3>{task.title}</h3>
+                        <p>{task.description}</p>
+                        <p className="project-name">Proyecto: {task.projectTitle}</p>
+                        <div className="task-actions">
+                          <select
+                            value={task.status}
+                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, task.projectId)}
+                          >
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_progreso">En Progreso</option>
+                            <option value="completada">Completada</option>
+                          </select>
+                          <button
+                            className="btn-report"
+                            onClick={() => {
+                              setSelectedProject(projects.find(p => p.id === task.projectId));
+                              setReportProblem(prev => ({ ...prev, taskId: task.nombre }));
+                            }}
+                          >
+                            Reportar Problema
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="tasks-column">
+                <h2>En Progreso ({inProgressTasks.length})</h2>
+                <div className="tasks-list">
+                  {inProgressTasks.length === 0 ? (
+                    <p className="no-tasks">No hay tareas en progreso</p>
+                  ) : (
+                    inProgressTasks.map(task => (
+                      <div key={task.nombre} className="task-card in-progress">
+                        <h3>{task.title}</h3>
+                        <p>{task.description}</p>
+                        <p className="project-name">Proyecto: {task.projectTitle}</p>
+                        <div className="task-actions">
+                          <select
+                            value={task.status}
+                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, task.projectId)}
+                          >
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_progreso">En Progreso</option>
+                            <option value="completada">Completada</option>
+                          </select>
+                          <button
+                            className="btn-report"
+                            onClick={() => {
+                              setSelectedProject(projects.find(p => p.id === task.projectId));
+                              setReportProblem(prev => ({ ...prev, taskId: task.nombre }));
+                            }}
+                          >
+                            Reportar Problema
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="tasks-column">
+                <h2>Completadas ({completedTasks.length})</h2>
+                <div className="tasks-list">
+                  {completedTasks.length === 0 ? (
+                    <p className="no-tasks">No hay tareas completadas</p>
+                  ) : (
+                    completedTasks.map(task => (
+                      <div key={task.nombre} className="task-card completed">
+                        <h3>{task.title}</h3>
+                        <p>{task.description}</p>
+                        <p className="project-name">Proyecto: {task.projectTitle}</p>
+                        <div className="task-actions">
+                          <select
+                            value={task.status}
+                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, task.projectId)}
+                          >
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_progreso">En Progreso</option>
+                            <option value="completada">Completada</option>
+                          </select>
+                          <button
+                            className="btn-report"
+                            onClick={() => {
+                              setSelectedProject(projects.find(p => p.id === task.projectId));
+                              setReportProblem(prev => ({ ...prev, taskId: task.nombre }));
+                            }}
+                          >
+                            Reportar Problema
+                          </button>
+                        </div>
+                        {task.lastUpdatedBy && (
+                          <div className="task-history">
+                            <p>Última actualización por: {task.lastUpdatedBy}</p>
+                            <p>Fecha: {new Date(task.lastUpdatedAt).toLocaleDateString()}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="projects-overview">
+            <h2>Mis Proyectos</h2>
+            {projects.length === 0 ? (
+              <p>No tienes proyectos asignados</p>
+            ) : (
+              <div className="projects-grid">
+                {projects.map(project => (
+                  <div key={project.id} className="project-card">
+                    <h3>{project.title.rendered}</h3>
+                    <p>{project.content.rendered}</p>
+                    <div className="project-stats">
+                      <div className="stat">
+                        <span className="stat-label">Tareas Totales:</span>
+                        <span className="stat-value">{project.meta?.tareas?.length || 0}</span>
+                      </div>
+                      <div className="stat">
+                        <span className="stat-label">Pendientes:</span>
+                        <span className="stat-value">
+                          {project.meta?.tareas?.filter(t => t.status === 'pendiente').length || 0}
+                        </span>
+                      </div>
+                      <div className="stat">
+                        <span className="stat-label">En Progreso:</span>
+                        <span className="stat-value">
+                          {project.meta?.tareas?.filter(t => t.status === 'en_progreso').length || 0}
+                        </span>
+                      </div>
+                      <div className="stat">
+                        <span className="stat-label">Completadas:</span>
+                        <span className="stat-value">
+                          {project.meta?.tareas?.filter(t => t.status === 'completada').length || 0}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      className="btn-view-tasks"
+                      onClick={() => {
+                        setSelectedProject(project);
+                        setActiveTab('tareas');
+                      }}
+                    >
+                      Ver Tareas
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -262,6 +487,7 @@ const UserDashboard = () => {
                     description: e.target.value
                   }))}
                   required
+                  placeholder="Describe el problema que has encontrado..."
                 />
               </div>
               <div className="form-group">
@@ -296,8 +522,6 @@ const UserDashboard = () => {
           </div>
         </div>
       )}
-
-      {error && <div className="error-message">{error}</div>}
     </div>
   );
 };

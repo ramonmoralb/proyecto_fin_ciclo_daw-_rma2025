@@ -25,7 +25,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/dashboard" />;
+    // Redirigir según el rol
+    if (userRole === 'project_user') {
+      return <Navigate to="/user-dashboard" />;
+    } else if (userRole === 'project_admin') {
+      return <Navigate to="/project-dashboard" />;
+    } else {
+      return <Navigate to="/admin-dashboard" />;
+    }
   }
 
   return children;
@@ -54,7 +61,7 @@ function App() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin', 'project_user']}>
+                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin']}>
                   <Dashboard />
                 </ProtectedRoute>
               }
@@ -117,7 +124,7 @@ function App() {
             <Route
               path="/user-dashboard"
               element={
-                <ProtectedRoute allowedRoles={['super_administrador', 'project_admin']}>
+                <ProtectedRoute allowedRoles={['project_user']}>
                   <UserDashboard />
                 </ProtectedRoute>
               }

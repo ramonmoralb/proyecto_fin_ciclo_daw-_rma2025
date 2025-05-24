@@ -111,7 +111,7 @@ function PM_register_project_meta() {
             ),
         ),
         'auth_callback' => function() {
-            return current_user_can('edit_proyectos') || current_user_can('edit_posts');
+            return current_user_can('read_proyectos');
         }
     ));
 
@@ -148,7 +148,7 @@ function PM_register_project_meta() {
             ),
         ),
         'auth_callback' => function() {
-            return current_user_can('edit_proyectos') || current_user_can('edit_posts');
+            return current_user_can('read_proyectos');
         }
     ));
 }
@@ -159,7 +159,23 @@ function PM_register_project_meta() {
 
 // Función para autorizar la actualización de metadatos
 function PM_authorize_meta_update($allowed, $meta_key, $post_id, $user_id, $cap, $caps) {
-    return current_user_can('edit_proyectos') || current_user_can('edit_posts');
+    // Si el usuario es administrador o project_admin, permitir todo
+    if (current_user_can('administrator') || current_user_can('project_admin')) {
+        return true;
+    }
+
+    // Si es project_user, verificar si es participante del proyecto
+    if (current_user_can('project_user')) {
+        $post = get_post($post_id);
+        if ($post && $post->post_type === 'proyecto') {
+            $participantes = get_post_meta($post_id, 'participantes', true);
+            if (is_array($participantes) && in_array($user_id, $participantes)) {
+                return true;
+            }
+        }
+    }
+
+    return $allowed;
 }
 
 // Función para sanitizar los participantes
@@ -321,4 +337,114 @@ function PM_cleanup_user_projects($post_id) {
 
 // Agregar hook para la eliminación de proyectos
 add_action('before_delete_post', 'PM_cleanup_user_projects');
+
+// Registrar endpoint personalizado para actualizar tareas
+add_action('rest_api_init', function () {
+    register_rest_route('pm/v1', '/tasks/(?P<project_id>\d+)/update', array(
+        'methods' => 'POST',
+        'callback' => 'PM_update_task_status',
+        'permission_callback' => function() {
+            return is_user_logged_in();
+        },
+        'args' => array(
+            'project_id' => array(
+                'required' => true,
+                'type' => 'integer'
+            ),
+            'task_name' => array(
+                'required' => true,
+                'type' => 'string'
+            ),
+            'new_status' => array(
+                'required' => true,
+                'type' => 'string',
+                'enum' => array('pendiente', 'en_progreso', 'completada')
+            )
+        )
+    ));
+});
+
+// Función para actualizar el estado de una tarea
+function PM_update_task_status($request) {
+    $project_id = $request['project_id'];
+    $task_name = $request['task_name'];
+    $new_status = $request['new_status'];
+    $current_user = wp_get_current_user();
+
+    error_log('Intentando actualizar tarea:');
+    error_log('Project ID: ' . $project_id);
+    error_log('Task Name: ' . $task_name);
+    error_log('New Status: ' . $new_status);
+    error_log('Current User ID: ' . $current_user->ID);
+    error_log('Current User Roles: ' . print_r($current_user->roles, true));
+
+    // Verificar permisos
+    $participantes = get_post_meta($project_id, 'participantes', true);
+    if (!is_array($participantes)) {
+        $participantes = array();
+    }
+    error_log('Participantes del proyecto: ' . print_r($participantes, true));
+
+    // Verificar si el usuario tiene permiso
+    $has_permission = false;
+    
+    // Verificar si es administrador o project_admin
+    if (in_array('administrator', $current_user->roles) || 
+        in_array('project_admin', $current_user->roles) || 
+        in_array('super_administrador', $current_user->roles)) {
+        $has_permission = true;
+        error_log('Usuario tiene permisos por rol de administrador');
+    }
+    
+    // Verificar si es participante
+    if (in_array($current_user->ID, $participantes)) {
+        $has_permission = true;
+        error_log('Usuario tiene permisos por ser participante');
+    }
+
+    if (!$has_permission) {
+        error_log('Usuario no tiene permisos para actualizar la tarea');
+        return new WP_Error('rest_forbidden', 'No tienes permiso para actualizar esta tarea', array('status' => 403));
+    }
+
+    // Obtener las tareas actuales
+    $tareas = get_post_meta($project_id, 'tareas', true);
+    if (!is_array($tareas)) {
+        error_log('No se encontraron tareas en el proyecto');
+        return new WP_Error('rest_error', 'No se encontraron tareas en el proyecto', array('status' => 404));
+    }
+    error_log('Tareas actuales: ' . print_r($tareas, true));
+
+    // Actualizar la tarea
+    $tarea_encontrada = false;
+    foreach ($tareas as &$tarea) {
+        if ($tarea['nombre'] === $task_name) {
+            $tarea['estado'] = $new_status;
+            $tarea['lastUpdatedBy'] = $current_user->display_name;
+            $tarea['lastUpdatedAt'] = current_time('mysql');
+            $tarea_encontrada = true;
+            error_log('Tarea actualizada: ' . print_r($tarea, true));
+            break;
+        }
+    }
+
+    if (!$tarea_encontrada) {
+        error_log('Tarea no encontrada');
+        return new WP_Error('rest_error', 'Tarea no encontrada', array('status' => 404));
+    }
+
+    // Guardar las tareas actualizadas
+    $result = update_post_meta($project_id, 'tareas', $tareas);
+    if (!$result) {
+        error_log('Error al guardar las tareas actualizadas');
+        return new WP_Error('rest_error', 'Error al actualizar la tarea', array('status' => 500));
+    }
+
+    error_log('Tarea actualizada exitosamente');
+    return array(
+        'success' => true,
+        'message' => 'Tarea actualizada correctamente',
+        'tareas' => $tareas
+    );
+}
 
