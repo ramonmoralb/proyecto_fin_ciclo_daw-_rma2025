@@ -66,7 +66,8 @@ const ProjectDashboard = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
-      console.log('Token usado:', token);
+      console.log('=== DEBUG USERS FETCH ===');
+      console.log('Token:', token);
       
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/wp/v2/users`,
@@ -78,33 +79,46 @@ const ProjectDashboard = () => {
         }
       );
       
-      console.log('Respuesta completa:', response);
-      console.log('Datos de usuarios recibidos:', response.data);
+      console.log('Response data:', response.data);
       
-      // Filtrar solo los usuarios con rol project_user
-      const projectUsers = response.data.filter(user => 
-        user.roles && user.roles.includes('project_user')
-      );
-      
-      console.log('Usuarios filtrados (project_user):', projectUsers);
-      setUsers(projectUsers);
-    } catch (error) {
-      console.error('Error al cargar usuarios:', error);
-      console.error('Detalles del error:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers
+      // Filtrar usuarios con rol project_user
+      const projectUsers = response.data.filter(user => {
+        console.log('User:', user.name, 'Roles:', user.roles);
+        return user.roles && user.roles.includes('project_user');
       });
       
-      if (error.response) {
-        console.error('Detalles del error:', error.response.data);
-        setError(`Error al cargar los usuarios: ${error.response.data.message || 'Error de permisos'}`);
+      console.log('Filtered project users:', projectUsers);
+      
+      // Si hay un proyecto seleccionado, filtrar por sus participantes
+      if (selectedProject) {
+        console.log('Selected project:', selectedProject);
+        console.log('Project participants:', selectedProject.meta?.participantes);
+        
+        const participantesIds = selectedProject.meta?.participantes || [];
+        const filteredUsers = projectUsers.filter(user => 
+          participantesIds.includes(user.id.toString())
+        );
+        console.log('Filtered participants:', filteredUsers);
+        setUsers(filteredUsers);
       } else {
-        setError('Error al cargar los usuarios. Por favor, contacta al administrador.');
+        // Si no hay proyecto seleccionado, mostrar todos los usuarios project_user
+        setUsers(projectUsers);
       }
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
+      setError('Error al cargar usuarios. Por favor, intenta de nuevo.');
     }
   };
+
+  // Añadir un useEffect para actualizar los usuarios cuando se selecciona un proyecto
+  useEffect(() => {
+    if (selectedProject) {
+      fetchUsers();
+    }
+  }, [selectedProject]);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -112,7 +126,14 @@ const ProjectDashboard = () => {
       const token = localStorage.getItem('jwtToken');
       const response = await axios.post(
         `${LOCAL_URL_API}wp-json/wp/v2/proyectos/`,
-        newProject,
+        {
+          title: newProject.title,
+          content: newProject.description,
+          meta: {
+            participantes: newProject.assignedUsers.map(id => id.toString()),
+            tareas: []
+          }
+        },
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -150,7 +171,7 @@ const ProjectDashboard = () => {
         estado: 'pendiente',
         descripcion: newTask.description,
         prioridad: newTask.priority,
-        asignado: newTask.assignedTo
+        asignado: newTask.assignedTo.toString() // Asegurarnos de que el ID sea string
       };
 
       // Añadir la nueva tarea al array existente
@@ -291,7 +312,7 @@ const ProjectDashboard = () => {
               />
             </div>
             <div className="form-group">
-              <label>Usuarios Asignados:</label>
+              <label>Participantes:</label>
               <select
                 multiple
                 value={newProject.assignedUsers}
@@ -306,6 +327,7 @@ const ProjectDashboard = () => {
                   </option>
                 ))}
               </select>
+              <small>Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</small>
             </div>
             <button type="submit" className="btn-submit">Crear Proyecto</button>
           </form>
@@ -397,76 +419,85 @@ const ProjectDashboard = () => {
               <h3>Pendiente</h3>
               {selectedProject.meta?.tareas
                 ?.filter(task => task.estado === 'pendiente')
-                .map(task => (
-                  <div key={task.nombre} className="task-card">
-                    <h4>{task.nombre}</h4>
-                    <p>{task.descripcion}</p>
-                    <div className="task-meta">
-                      <span className={`priority ${task.prioridad}`}>
-                        {task.prioridad}
-                      </span>
-                      <span className="assigned-to">
-                        Asignado a: {task.asignado}
-                      </span>
+                .map(task => {
+                  const assignedUser = users.find(user => user.id.toString() === task.asignado);
+                  return (
+                    <div key={task.nombre} className="task-card">
+                      <h4>{task.nombre}</h4>
+                      <p>{task.descripcion}</p>
+                      <div className="task-meta">
+                        <span className={`priority ${task.prioridad}`}>
+                          {task.prioridad}
+                        </span>
+                        <span className="assigned-to">
+                          Asignado a: {assignedUser ? assignedUser.name : 'No asignado'}
+                        </span>
+                      </div>
+                      <div className="task-actions">
+                        <button
+                          onClick={() => handleUpdateTaskStatus(task.nombre, 'en_progreso')}
+                          className="btn-move"
+                        >
+                          Mover a En Progreso
+                        </button>
+                      </div>
                     </div>
-                    <div className="task-actions">
-                      <button
-                        onClick={() => handleUpdateTaskStatus(task.nombre, 'en_progreso')}
-                        className="btn-move"
-                      >
-                        Mover a En Progreso
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
 
             <div className="kanban-column">
               <h3>En Progreso</h3>
               {selectedProject.meta?.tareas
                 ?.filter(task => task.estado === 'en_progreso')
-                .map(task => (
-                  <div key={task.nombre} className="task-card">
-                    <h4>{task.nombre}</h4>
-                    <p>{task.descripcion}</p>
-                    <div className="task-meta">
-                      <span className={`priority ${task.prioridad}`}>
-                        {task.prioridad}
-                      </span>
-                      <span className="assigned-to">
-                        Asignado a: {task.asignado}
-                      </span>
+                .map(task => {
+                  const assignedUser = users.find(user => user.id.toString() === task.asignado);
+                  return (
+                    <div key={task.nombre} className="task-card">
+                      <h4>{task.nombre}</h4>
+                      <p>{task.descripcion}</p>
+                      <div className="task-meta">
+                        <span className={`priority ${task.prioridad}`}>
+                          {task.prioridad}
+                        </span>
+                        <span className="assigned-to">
+                          Asignado a: {assignedUser ? assignedUser.name : 'No asignado'}
+                        </span>
+                      </div>
+                      <div className="task-actions">
+                        <button
+                          onClick={() => handleUpdateTaskStatus(task.nombre, 'completada')}
+                          className="btn-move"
+                        >
+                          Mover a Completada
+                        </button>
+                      </div>
                     </div>
-                    <div className="task-actions">
-                      <button
-                        onClick={() => handleUpdateTaskStatus(task.nombre, 'completada')}
-                        className="btn-move"
-                      >
-                        Mover a Completada
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
 
             <div className="kanban-column">
               <h3>Completada</h3>
               {selectedProject.meta?.tareas
                 ?.filter(task => task.estado === 'completada')
-                .map(task => (
-                  <div key={task.nombre} className="task-card">
-                    <h4>{task.nombre}</h4>
-                    <p>{task.descripcion}</p>
-                    <div className="task-meta">
-                      <span className={`priority ${task.prioridad}`}>
-                        {task.prioridad}
-                      </span>
-                      <span className="assigned-to">
-                        Asignado a: {task.asignado}
-                      </span>
+                .map(task => {
+                  const assignedUser = users.find(user => user.id.toString() === task.asignado);
+                  return (
+                    <div key={task.nombre} className="task-card">
+                      <h4>{task.nombre}</h4>
+                      <p>{task.descripcion}</p>
+                      <div className="task-meta">
+                        <span className={`priority ${task.prioridad}`}>
+                          {task.prioridad}
+                        </span>
+                        <span className="assigned-to">
+                          Asignado a: {assignedUser ? assignedUser.name : 'No asignado'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           </div>
         </div>
