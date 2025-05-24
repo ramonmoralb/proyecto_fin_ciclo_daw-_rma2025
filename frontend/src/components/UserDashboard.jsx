@@ -3,6 +3,7 @@ import axios from 'axios';
 import { LOCAL_URL_API } from '../constants/constans';
 import { useAuth } from '../context/AuthContext';
 import '../styles/UserDashboard.css';
+import '../styles/SalesStyles.css';
 
 const UserDashboard = () => {
   const { userRole, userName, userEmail } = useAuth();
@@ -12,12 +13,18 @@ const UserDashboard = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [activeTab, setActiveTab] = useState('tareas');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('all');
+  const [clients, setClients] = useState([]);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     if (userRole === 'project_user' || userRole === 'project_admin' || userRole === 'super_administrador') {
       fetchProjects();
+      if (activeTab === 'ventas') {
+        fetchClients();
+        fetchProducts();
+      }
     }
-  }, [userRole]);
+  }, [userRole, activeTab]);
 
   const fetchProjects = async () => {
     try {
@@ -110,6 +117,46 @@ const UserDashboard = () => {
     }
   };
 
+  const fetchClients = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/clientes`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      console.log('Clientes recibidos:', response.data);
+      setClients(response.data);
+    } catch (error) {
+      console.error('Error al cargar clientes:', error);
+      setError('Error al cargar los clientes');
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/productos`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      console.log('Productos recibidos:', response.data);
+      setProducts(response.data);
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+      setError('Error al cargar los productos');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Cargando...</div>;
   }
@@ -164,6 +211,12 @@ const UserDashboard = () => {
           onClick={() => setActiveTab('proyectos')}
         >
           Mis Proyectos
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'ventas' ? 'active' : ''}`}
+          onClick={() => setActiveTab('ventas')}
+        >
+          Ventas
         </button>
       </div>
 
@@ -273,7 +326,7 @@ const UserDashboard = () => {
               </div>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'proyectos' ? (
           <div className="projects-overview">
             <h2>Mis Proyectos</h2>
             {projects.length === 0 ? (
@@ -321,6 +374,46 @@ const UserDashboard = () => {
                 ))}
               </div>
             )}
+          </div>
+        ) : (
+          <div className="sales-overview">
+            <div className="sales-header">
+              <h2>Gestión de Ventas</h2>
+            </div>
+
+            <div className="sales-content">
+              <div className="clients-section">
+                <h3>Clientes</h3>
+                <div className="clients-grid">
+                  {clients.map(client => (
+                    <div key={client.id} className="client-card">
+                      <h4>{client.title.rendered || client.title}</h4>
+                      <div className="client-details">
+                        <p><strong>Email:</strong> {client.meta?.email || ''}</p>
+                        <p><strong>Teléfono:</strong> {client.meta?.telefono || ''}</p>
+                        <p><strong>Dirección:</strong> {client.meta?.direccion || ''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="products-section">
+                <h3>Productos</h3>
+                <div className="products-grid">
+                  {products.map(product => (
+                    <div key={product.id} className="product-card">
+                      <h4>{product.title.rendered || product.title}</h4>
+                      <div className="product-details">
+                        <p><strong>Precio:</strong> ${product.meta?.precio || 0}</p>
+                        <p><strong>Stock:</strong> {product.meta?.stock || 0}</p>
+                        <p>{product.content?.rendered || product.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

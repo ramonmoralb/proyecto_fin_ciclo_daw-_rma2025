@@ -4,6 +4,7 @@ import { LOCAL_URL_API } from '../constants/constans';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import '../styles/ProjectDashboard.css';
+import '../styles/SalesStyles.css';
 
 const ProjectDashboard = () => {
   const [projects, setProjects] = useState([]);
@@ -485,12 +486,15 @@ const ProjectDashboard = () => {
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
-      const response = await axios.get(`${LOCAL_URL_API}wp-json/wp/v2/clientes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/clientes`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
       setClients(response.data);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
@@ -501,12 +505,15 @@ const ProjectDashboard = () => {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
-      const response = await axios.get(`${LOCAL_URL_API}wp-json/wp/v2/productos`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/productos`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
       setProducts(response.data);
     } catch (error) {
       console.error('Error al cargar productos:', error);
@@ -623,11 +630,11 @@ const ProjectDashboard = () => {
           <div className="clients-grid">
             {clients.map(client => (
               <div key={client.id} className="client-card">
-                <h4>{client.title.rendered}</h4>
+                <h4>{client.title.rendered || client.title}</h4>
                 <div className="client-details">
-                  <p><strong>Email:</strong> {client.meta?.email}</p>
-                  <p><strong>Teléfono:</strong> {client.meta?.telefono}</p>
-                  <p><strong>Dirección:</strong> {client.meta?.direccion}</p>
+                  <p><strong>Email:</strong> {client.meta?.email || ''}</p>
+                  <p><strong>Teléfono:</strong> {client.meta?.telefono || ''}</p>
+                  <p><strong>Dirección:</strong> {client.meta?.direccion || ''}</p>
                 </div>
               </div>
             ))}
@@ -639,11 +646,11 @@ const ProjectDashboard = () => {
           <div className="products-grid">
             {products.map(product => (
               <div key={product.id} className="product-card">
-                <h4>{product.title.rendered}</h4>
+                <h4>{product.title.rendered || product.title}</h4>
                 <div className="product-details">
-                  <p><strong>Precio:</strong> ${product.meta?.precio}</p>
-                  <p><strong>Stock:</strong> {product.meta?.stock}</p>
-                  <p>{product.content.rendered}</p>
+                  <p><strong>Precio:</strong> ${product.meta?.precio || 0}</p>
+                  <p><strong>Stock:</strong> {product.meta?.stock || 0}</p>
+                  <p>{product.content?.rendered || product.description}</p>
                 </div>
               </div>
             ))}
