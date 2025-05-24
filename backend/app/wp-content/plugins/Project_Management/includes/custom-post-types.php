@@ -115,14 +115,91 @@ function register_producto_post_type() {
     ));
 }
 
+// Registrar el tipo de post para Pedidos
+function register_orders_post_type() {
+    $labels = array(
+        'name'               => 'Pedidos',
+        'singular_name'      => 'Pedido',
+        'menu_name'          => 'Pedidos',
+        'add_new'            => 'Añadir Nuevo',
+        'add_new_item'       => 'Añadir Nuevo Pedido',
+        'edit_item'          => 'Editar Pedido',
+        'new_item'           => 'Nuevo Pedido',
+        'view_item'          => 'Ver Pedido',
+        'search_items'       => 'Buscar Pedidos',
+        'not_found'          => 'No se encontraron pedidos',
+        'not_found_in_trash' => 'No se encontraron pedidos en la papelera'
+    );
+
+    $args = array(
+        'labels'              => $labels,
+        'public'              => true,
+        'has_archive'         => true,
+        'publicly_queryable'  => true,
+        'show_ui'            => true,
+        'show_in_menu'       => true,
+        'query_var'          => true,
+        'rewrite'            => array('slug' => 'pedidos'),
+        'capability_type'    => 'post',
+        'menu_icon'          => 'dashicons-cart',
+        'supports'           => array('title', 'editor', 'custom-fields'),
+        'show_in_rest'       => true,
+    );
+
+    register_post_type('pedidos', $args);
+
+    // Registrar meta campos para pedidos
+    register_post_meta('pedidos', 'cliente_id', array(
+        'type' => 'string',
+        'single' => true,
+        'show_in_rest' => true,
+        'sanitize_callback' => 'sanitize_text_field'
+    ));
+
+    register_post_meta('pedidos', 'productos', array(
+        'type' => 'array',
+        'single' => true,
+        'show_in_rest' => array(
+            'schema' => array(
+                'type' => 'array',
+                'items' => array(
+                    'type' => 'object',
+                    'properties' => array(
+                        'producto_id' => array('type' => 'string'),
+                        'cantidad' => array('type' => 'number'),
+                        'precio_unitario' => array('type' => 'number')
+                    )
+                )
+            )
+        )
+    ));
+
+    register_post_meta('pedidos', 'estado', array(
+        'type' => 'string',
+        'single' => true,
+        'show_in_rest' => true,
+        'sanitize_callback' => 'sanitize_text_field',
+        'default' => 'pendiente'
+    ));
+
+    register_post_meta('pedidos', 'total', array(
+        'type' => 'number',
+        'single' => true,
+        'show_in_rest' => true,
+        'sanitize_callback' => 'floatval'
+    ));
+}
+
 // Registrar los Custom Post Types
 add_action('init', 'register_cliente_post_type');
 add_action('init', 'register_producto_post_type');
+add_action('init', 'register_orders_post_type');
 
 // Flush rewrite rules al activar el plugin
 register_activation_hook(PM_PLUGIN_DIR . 'Project_Management.php', function() {
     register_cliente_post_type();
     register_producto_post_type();
+    register_orders_post_type();
     flush_rewrite_rules();
 });
 

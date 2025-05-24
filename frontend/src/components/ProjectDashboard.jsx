@@ -5,6 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import '../styles/ProjectDashboard.css';
 import '../styles/SalesStyles.css';
+import ClientCard from './ClientCard';
+import ProductCard from './ProductCard';
+import OrderCard from './OrderCard';
+import CreateOrder from './CreateOrder';
 
 const ProjectDashboard = () => {
   const [projects, setProjects] = useState([]);
@@ -27,9 +31,9 @@ const ProjectDashboard = () => {
     assignedTo: ''
   });
   const [projectParticipants, setProjectParticipants] = useState([]);
-  const { userRole, isAuthenticated } = useAuth();
+  const { userRole, isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('projects'); // 'projects' o 'sales'
+  const [activeTab, setActiveTab] = useState('projects'); // 'projects' o 'sales' o 'pedidos'
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
   const [showCreateClient, setShowCreateClient] = useState(false);
@@ -46,6 +50,8 @@ const ProjectDashboard = () => {
     precio: '',
     stock: ''
   });
+  const [orders, setOrders] = useState([]);
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -63,6 +69,8 @@ const ProjectDashboard = () => {
     if (activeTab === 'sales') {
       fetchClients();
       fetchProducts();
+    } else if (activeTab === 'pedidos') {
+      fetchOrders();
     }
   }, [userRole, isAuthenticated, navigate, activeTab]);
 
@@ -604,24 +612,50 @@ const ProjectDashboard = () => {
     }
   };
 
+  const fetchOrders = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/pedidos`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      setOrders(response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setError('Error al cargar los pedidos');
+    }
+  };
+
+  const handleOrderStatusChange = async (orderId, newStatus) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      const response = await axios.put(`${LOCAL_URL_API}/wp-json/pm/v1/pedidos/${orderId}`, {
+        ...order,
+        estado: newStatus
+      });
+
+      setOrders(orders.map(o => o.id === orderId ? response.data : o));
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      setError('Error al actualizar el estado del pedido');
+    }
+  };
+
+  const handleOrderCreated = (newOrder) => {
+    setOrders([...orders, newOrder]);
+  };
+
   const renderSalesTab = () => (
     <div className="sales-overview">
       <div className="sales-header">
         <h2>Gestión de Ventas</h2>
-        <div className="sales-actions">
-          <button 
-            className="btn-create"
-            onClick={() => setShowCreateClient(true)}
-          >
-            <i className="fas fa-plus"></i> Nuevo Cliente
-          </button>
-          <button 
-            className="btn-create"
-            onClick={() => setShowCreateProduct(true)}
-          >
-            <i className="fas fa-plus"></i> Nuevo Producto
-          </button>
-        </div>
       </div>
 
       <div className="sales-content">
@@ -629,14 +663,7 @@ const ProjectDashboard = () => {
           <h3>Clientes</h3>
           <div className="clients-grid">
             {clients.map(client => (
-              <div key={client.id} className="client-card">
-                <h4>{client.title.rendered || client.title}</h4>
-                <div className="client-details">
-                  <p><strong>Email:</strong> {client.meta?.email || ''}</p>
-                  <p><strong>Teléfono:</strong> {client.meta?.telefono || ''}</p>
-                  <p><strong>Dirección:</strong> {client.meta?.direccion || ''}</p>
-                </div>
-              </div>
+              <ClientCard key={client.id} client={client} />
             ))}
           </div>
         </div>
@@ -645,130 +672,43 @@ const ProjectDashboard = () => {
           <h3>Productos</h3>
           <div className="products-grid">
             {products.map(product => (
-              <div key={product.id} className="product-card">
-                <h4>{product.title.rendered || product.title}</h4>
-                <div className="product-details">
-                  <p><strong>Precio:</strong> ${product.meta?.precio || 0}</p>
-                  <p><strong>Stock:</strong> {product.meta?.stock || 0}</p>
-                  <p>{product.content?.rendered || product.description}</p>
-                </div>
-              </div>
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
         </div>
       </div>
+    </div>
+  );
 
-      {/* Modal para crear cliente */}
-      {showCreateClient && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Nuevo Cliente</h3>
-            <form onSubmit={handleCreateClient}>
-              <div className="form-group">
-                <label>Nombre:</label>
-                <input
-                  type="text"
-                  value={newClient.nombre}
-                  onChange={(e) => setNewClient({...newClient, nombre: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Email:</label>
-                <input
-                  type="email"
-                  value={newClient.email}
-                  onChange={(e) => setNewClient({...newClient, email: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Teléfono:</label>
-                <input
-                  type="tel"
-                  value={newClient.telefono}
-                  onChange={(e) => setNewClient({...newClient, telefono: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Dirección:</label>
-                <textarea
-                  value={newClient.direccion}
-                  onChange={(e) => setNewClient({...newClient, direccion: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn-create">Crear Cliente</button>
-                <button 
-                  type="button" 
-                  className="btn-cancel"
-                  onClick={() => setShowCreateClient(false)}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
+  const renderOrdersTab = () => (
+    <div className="orders-overview">
+      <div className="orders-header">
+        <h2>Gestión de Pedidos</h2>
+        <div className="orders-actions">
+          <button 
+            className="btn-create"
+            onClick={() => setShowCreateOrder(true)}
+          >
+            <i className="fas fa-plus"></i> Nuevo Pedido
+          </button>
         </div>
-      )}
+      </div>
 
-      {/* Modal para crear producto */}
-      {showCreateProduct && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Nuevo Producto</h3>
-            <form onSubmit={handleCreateProduct}>
-              <div className="form-group">
-                <label>Nombre:</label>
-                <input
-                  type="text"
-                  value={newProduct.nombre}
-                  onChange={(e) => setNewProduct({...newProduct, nombre: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Descripción:</label>
-                <textarea
-                  value={newProduct.descripcion}
-                  onChange={(e) => setNewProduct({...newProduct, descripcion: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Precio:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={newProduct.precio}
-                  onChange={(e) => setNewProduct({...newProduct, precio: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Stock:</label>
-                <input
-                  type="number"
-                  value={newProduct.stock}
-                  onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn-create">Crear Producto</button>
-                <button 
-                  type="button" 
-                  className="btn-cancel"
-                  onClick={() => setShowCreateProduct(false)}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      <div className="orders-content">
+        {orders.map(order => (
+          <OrderCard 
+            key={order.id} 
+            order={order}
+            onStatusChange={handleOrderStatusChange}
+          />
+        ))}
+      </div>
+
+      {showCreateOrder && (
+        <CreateOrder
+          onClose={() => setShowCreateOrder(false)}
+          onOrderCreated={handleOrderCreated}
+        />
       )}
     </div>
   );
@@ -778,198 +718,218 @@ const ProjectDashboard = () => {
 
   return (
     <div className="project-dashboard">
+      <div className="dashboard-header">
+        <h1>Panel de Proyectos</h1>
+        <div className="user-info">
+          <span>Bienvenido, {user?.user_nicename}</span>
+          <button onClick={logout} className="btn-logout">
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
+
       <div className="dashboard-tabs">
         <button 
-          className={`tab-button ${activeTab === 'projects' ? 'active' : ''}`}
+          className={activeTab === 'projects' ? 'active' : ''}
           onClick={() => setActiveTab('projects')}
         >
           Proyectos
         </button>
         <button 
-          className={`tab-button ${activeTab === 'sales' ? 'active' : ''}`}
+          className={activeTab === 'sales' ? 'active' : ''}
           onClick={() => setActiveTab('sales')}
         >
           Ventas
         </button>
+        <button 
+          className={activeTab === 'pedidos' ? 'active' : ''}
+          onClick={() => setActiveTab('pedidos')}
+        >
+          Pedidos
+        </button>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
-      {successMessage && <div className="success-message">{successMessage}</div>}
+      <div className="dashboard-content">
+        {error && <div className="error-message">{error}</div>}
+        {successMessage && <div className="success-message">{successMessage}</div>}
 
-      {activeTab === 'projects' ? (
-        <div className="projects-overview">
-          <div className="dashboard-header">
-            <h1>Panel de Administración de Proyectos</h1>
-            <div className="dashboard-actions">
-              <button className="btn-create" onClick={() => setShowCreateProject(true)}>
-                <i className="fas fa-plus"></i> Nuevo Proyecto
-              </button>
+        {activeTab === 'projects' ? (
+          <div className="projects-overview">
+            <div className="dashboard-header">
+              <h1>Panel de Administración de Proyectos</h1>
+              <div className="dashboard-actions">
+                <button className="btn-create" onClick={() => setShowCreateProject(true)}>
+                  <i className="fas fa-plus"></i> Nuevo Proyecto
+                </button>
+              </div>
             </div>
-          </div>
 
-          {selectedProject ? (
-            renderProjectDetails()
-          ) : (
-            <div className="projects-list">
-              <h2>Proyectos</h2>
-              {projects.length === 0 ? (
-                <p>No hay proyectos disponibles</p>
-              ) : (
-                <div className="projects-grid">
-                  {projects.map(project => (
-                    <div 
-                      key={project.id} 
-                      className="project-card"
-                      onClick={() => handleProjectClick(project)}
-                    >
-                      <div className="project-header">
-                        <h3>{project.title.rendered}</h3>
-                        <div className="project-actions">
-                          <button 
-                            className="btn-delete" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteProject(project.id);
-                            }}
-                            title="Eliminar proyecto"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
+            {selectedProject ? (
+              renderProjectDetails()
+            ) : (
+              <div className="projects-list">
+                <h2>Proyectos</h2>
+                {projects.length === 0 ? (
+                  <p>No hay proyectos disponibles</p>
+                ) : (
+                  <div className="projects-grid">
+                    {projects.map(project => (
+                      <div 
+                        key={project.id} 
+                        className="project-card"
+                        onClick={() => handleProjectClick(project)}
+                      >
+                        <div className="project-header">
+                          <h3>{project.title.rendered}</h3>
+                          <div className="project-actions">
+                            <button 
+                              className="btn-delete" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProject(project.id);
+                              }}
+                              title="Eliminar proyecto"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
                         </div>
+                        <div dangerouslySetInnerHTML={{ __html: project.content.rendered }} />
+                        <div className="project-meta">
+                          <div className="meta-item">
+                            <i className="fas fa-users"></i>
+                            <span>Participantes: {project.meta?.participantes?.length || 0}</span>
+                          </div>
+                          <div className="meta-item">
+                            <i className="fas fa-tasks"></i>
+                            <span>Tareas: {project.meta?.tareas?.length || 0}</span>
+                          </div>
+                        </div>
+                        <button className="btn-view-details">
+                          Ver Detalles
+                        </button>
                       </div>
-                      <div dangerouslySetInnerHTML={{ __html: project.content.rendered }} />
-                      <div className="project-meta">
-                        <div className="meta-item">
-                          <i className="fas fa-users"></i>
-                          <span>Participantes: {project.meta?.participantes?.length || 0}</span>
-                        </div>
-                        <div className="meta-item">
-                          <i className="fas fa-tasks"></i>
-                          <span>Tareas: {project.meta?.tareas?.length || 0}</span>
-                        </div>
-                      </div>
-                      <button className="btn-view-details">
-                        Ver Detalles
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showCreateProject && (
+              <div className="modal">
+                <div className="modal-content">
+                  <h2>Crear Nuevo Proyecto</h2>
+                  <form onSubmit={handleCreateProject}>
+                    <div className="form-group">
+                      <label>Título:</label>
+                      <input
+                        type="text"
+                        value={newProject.title}
+                        onChange={(e) => setNewProject({...newProject, title: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Descripción:</label>
+                      <textarea
+                        value={newProject.description}
+                        onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Participantes:</label>
+                      <select
+                        multiple
+                        value={newProject.assignedUsers}
+                        onChange={(e) => setNewProject({
+                          ...newProject,
+                          assignedUsers: Array.from(e.target.selectedOptions, option => option.value)
+                        })}
+                      >
+                        {users.map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                      <small>Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</small>
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="btn-submit">Crear Proyecto</button>
+                      <button type="button" className="btn-cancel" onClick={() => setShowCreateProject(false)}>
+                        Cancelar
                       </button>
                     </div>
-                  ))}
+                  </form>
                 </div>
-              )}
-            </div>
-          )}
-
-          {showCreateProject && (
-            <div className="modal">
-              <div className="modal-content">
-                <h2>Crear Nuevo Proyecto</h2>
-                <form onSubmit={handleCreateProject}>
-                  <div className="form-group">
-                    <label>Título:</label>
-                    <input
-                      type="text"
-                      value={newProject.title}
-                      onChange={(e) => setNewProject({...newProject, title: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Descripción:</label>
-                    <textarea
-                      value={newProject.description}
-                      onChange={(e) => setNewProject({...newProject, description: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Participantes:</label>
-                    <select
-                      multiple
-                      value={newProject.assignedUsers}
-                      onChange={(e) => setNewProject({
-                        ...newProject,
-                        assignedUsers: Array.from(e.target.selectedOptions, option => option.value)
-                      })}
-                    >
-                      {users.map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.name}
-                        </option>
-                      ))}
-                    </select>
-                    <small>Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</small>
-                  </div>
-                  <div className="form-actions">
-                    <button type="submit" className="btn-submit">Crear Proyecto</button>
-                    <button type="button" className="btn-cancel" onClick={() => setShowCreateProject(false)}>
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
               </div>
-            </div>
-          )}
+            )}
 
-          {showCreateTask && (
-            <div className="modal">
-              <div className="modal-content">
-                <h2>Crear Nueva Tarea</h2>
-                <form onSubmit={handleCreateTask}>
-                  <div className="form-group">
-                    <label>Título:</label>
-                    <input
-                      type="text"
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Descripción:</label>
-                    <textarea
-                      value={newTask.description}
-                      onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Prioridad:</label>
-                    <select
-                      value={newTask.priority}
-                      onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                    >
-                      <option value="baja">Baja</option>
-                      <option value="media">Media</option>
-                      <option value="alta">Alta</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Asignar a:</label>
-                    <select
-                      value={newTask.assignedTo}
-                      onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
-                    >
-                      <option value="">Seleccionar usuario</option>
-                      {users.map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-actions">
-                    <button type="submit" className="btn-submit">Crear Tarea</button>
-                    <button type="button" className="btn-cancel" onClick={() => setShowCreateTask(false)}>
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
+            {showCreateTask && (
+              <div className="modal">
+                <div className="modal-content">
+                  <h2>Crear Nueva Tarea</h2>
+                  <form onSubmit={handleCreateTask}>
+                    <div className="form-group">
+                      <label>Título:</label>
+                      <input
+                        type="text"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Descripción:</label>
+                      <textarea
+                        value={newTask.description}
+                        onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Prioridad:</label>
+                      <select
+                        value={newTask.priority}
+                        onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                      >
+                        <option value="baja">Baja</option>
+                        <option value="media">Media</option>
+                        <option value="alta">Alta</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Asignar a:</label>
+                      <select
+                        value={newTask.assignedTo}
+                        onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
+                      >
+                        <option value="">Seleccionar usuario</option>
+                        {users.map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="btn-submit">Crear Tarea</button>
+                      <button type="button" className="btn-cancel" onClick={() => setShowCreateTask(false)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        renderSalesTab()
-      )}
+            )}
+          </div>
+        ) : activeTab === 'sales' ? (
+          renderSalesTab()
+        ) : (
+          renderOrdersTab()
+        )}
+      </div>
     </div>
   );
 };

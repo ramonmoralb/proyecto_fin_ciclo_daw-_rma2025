@@ -3,7 +3,12 @@ import axios from 'axios';
 import { LOCAL_URL_API } from '../constants/constans';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ClientCard from './ClientCard';
+import ProductCard from './ProductCard';
+import OrderCard from './OrderCard';
+import CreateOrder from './CreateOrder';
 import '../styles/AdminDashboard.css';
+import '../styles/SalesStyles.css';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -17,7 +22,7 @@ const AdminDashboard = () => {
     password: '',
     role: 'project_user'
   });
-  const { userRole, isAuthenticated } = useAuth();
+  const { userRole, isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
   const [successMessage, setSuccessMessage] = useState('');
   const [activeTab, setActiveTab] = useState('users');
@@ -52,6 +57,8 @@ const AdminDashboard = () => {
     precio: '',
     stock: ''
   });
+  const [orders, setOrders] = useState([]);
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -68,6 +75,7 @@ const AdminDashboard = () => {
     fetchProjects();
     fetchClients();
     fetchProducts();
+    fetchOrders();
   }, [userRole, isAuthenticated, navigate]);
 
   const fetchUsers = async () => {
@@ -149,6 +157,25 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error al cargar productos:', error);
       setError('Error al cargar los productos');
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/pedidos`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      setOrders(response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setError('Error al cargar los pedidos');
     }
   };
 
@@ -577,6 +604,27 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleOrderStatusChange = async (orderId, newStatus) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      const response = await axios.put(`${LOCAL_URL_API}/wp-json/pm/v1/pedidos/${orderId}`, {
+        ...order,
+        estado: newStatus
+      });
+
+      setOrders(orders.map(o => o.id === orderId ? response.data : o));
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      setError('Error al actualizar el estado del pedido');
+    }
+  };
+
+  const handleOrderCreated = (newOrder) => {
+    setOrders([...orders, newOrder]);
+  };
+
   const renderProjectsTab = () => (
     <div className="projects-overview">
       <div className="projects-header">
@@ -669,80 +717,74 @@ const AdminDashboard = () => {
     <div className="sales-overview">
       <div className="sales-header">
         <h2>Gestión de Ventas</h2>
+        <div className="sales-actions">
+          <button 
+            className="btn-create"
+            onClick={() => setShowCreateClient(true)}
+          >
+            <i className="fas fa-plus"></i> Nuevo Cliente
+          </button>
+          <button 
+            className="btn-create"
+            onClick={() => setShowCreateProduct(true)}
+          >
+            <i className="fas fa-plus"></i> Nuevo Producto
+          </button>
+        </div>
       </div>
 
-      <div className="sales-sections">
+      <div className="sales-content">
         <div className="clients-section">
-          <div className="section-header">
-            <h3>Clientes</h3>
-            <button 
-              className="btn-create"
-              onClick={() => setShowCreateClient(true)}
-            >
-              <i className="fas fa-plus"></i> Nuevo Cliente
-            </button>
-          </div>
-
+          <h3>Clientes</h3>
           <div className="clients-grid">
             {clients.map(client => (
-              <div key={client.id} className="client-card">
-                <div className="card-header">
-                  <h4>{client.title.rendered || client.title}</h4>
-                  <button 
-                    className="btn-delete"
-                    onClick={() => handleDeleteClient(client.id)}
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
-                </div>
-                <div className="card-content">
-                  <p>{client.content?.rendered || client.description}</p>
-                  <div className="client-details">
-                    <p><strong>Email:</strong> {client.meta?.email || ''}</p>
-                    <p><strong>Teléfono:</strong> {client.meta?.telefono || ''}</p>
-                    <p><strong>Dirección:</strong> {client.meta?.direccion || ''}</p>
-                  </div>
-                </div>
-              </div>
+              <ClientCard key={client.id} client={client} />
             ))}
           </div>
         </div>
 
         <div className="products-section">
-          <div className="section-header">
-            <h3>Productos</h3>
-            <button 
-              className="btn-create"
-              onClick={() => setShowCreateProduct(true)}
-            >
-              <i className="fas fa-plus"></i> Nuevo Producto
-            </button>
-          </div>
-
+          <h3>Productos</h3>
           <div className="products-grid">
             {products.map(product => (
-              <div key={product.id} className="product-card">
-                <div className="card-header">
-                  <h4>{product.title.rendered || product.title}</h4>
-                  <button 
-                    className="btn-delete"
-                    onClick={() => handleDeleteProduct(product.id)}
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
-                </div>
-                <div className="card-content">
-                  <p>{product.content?.rendered || product.description}</p>
-                  <div className="product-details">
-                    <p><strong>Precio:</strong> ${product.meta?.precio || 0}</p>
-                    <p><strong>Stock:</strong> {product.meta?.stock || 0}</p>
-                  </div>
-                </div>
-              </div>
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  const renderOrdersTab = () => (
+    <div className="orders-overview">
+      <div className="orders-header">
+        <h2>Gestión de Pedidos</h2>
+        <div className="orders-actions">
+          <button 
+            className="btn-create"
+            onClick={() => setShowCreateOrder(true)}
+          >
+            <i className="fas fa-plus"></i> Nuevo Pedido
+          </button>
+        </div>
+      </div>
+
+      <div className="orders-content">
+        {orders.map(order => (
+          <OrderCard 
+            key={order.id} 
+            order={order}
+            onStatusChange={handleOrderStatusChange}
+          />
+        ))}
+      </div>
+
+      {showCreateOrder && (
+        <CreateOrder
+          onClose={() => setShowCreateOrder(false)}
+          onOrderCreated={handleOrderCreated}
+        />
+      )}
     </div>
   );
 
@@ -751,7 +793,15 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-dashboard">
-      <h1>Panel de Administración</h1>
+      <div className="dashboard-header">
+        <h1>Panel de Administración</h1>
+        <div className="user-info">
+          <span>Bienvenido, {user?.user_nicename}</span>
+          <button onClick={logout} className="btn-logout">
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
       
       {successMessage && (
         <div className="success-message">
@@ -777,6 +827,12 @@ const AdminDashboard = () => {
           onClick={() => setActiveTab('sales')}
         >
           Ventas
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'pedidos' ? 'active' : ''}`}
+          onClick={() => setActiveTab('pedidos')}
+        >
+          Pedidos
         </button>
       </div>
 
@@ -905,8 +961,10 @@ const AdminDashboard = () => {
           </div>
         ) : activeTab === 'projects' ? (
           renderProjectsTab()
-        ) : (
+        ) : activeTab === 'sales' ? (
           renderSalesTab()
+        ) : (
+          renderOrdersTab()
         )}
       </div>
 

@@ -2,29 +2,36 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { LOCAL_URL_API } from '../constants/constans';
 import { useAuth } from '../context/AuthContext';
+import ClientCard from './ClientCard';
+import ProductCard from './ProductCard';
+import OrderCard from './OrderCard';
+import CreateOrder from './CreateOrder';
 import '../styles/UserDashboard.css';
 import '../styles/SalesStyles.css';
 
 const UserDashboard = () => {
-  const { userRole, userName, userEmail } = useAuth();
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('proyectos');
   const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('tareas');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('all');
-  const [clients, setClients] = useState([]);
-  const [products, setProducts] = useState([]);
 
   useEffect(() => {
-    if (userRole === 'project_user' || userRole === 'project_admin' || userRole === 'super_administrador') {
+    if (activeTab === 'proyectos') {
       fetchProjects();
-      if (activeTab === 'ventas') {
-        fetchClients();
-        fetchProducts();
-      }
+    } else if (activeTab === 'ventas') {
+      fetchClients();
+      fetchProducts();
+    } else if (activeTab === 'pedidos') {
+      fetchOrders();
     }
-  }, [userRole, activeTab]);
+  }, [activeTab]);
 
   const fetchProjects = async () => {
     try {
@@ -41,7 +48,7 @@ const UserDashboard = () => {
 
       // Filtrar proyectos según el rol del usuario
       let userProjects;
-      if (userRole === 'project_user') {
+      if (user.user_role === 'project_user') {
         // Obtener el ID del usuario actual
         const userResponse = await axios.get(
           `${LOCAL_URL_API}wp-json/wp/v2/users/me`,
@@ -157,6 +164,46 @@ const UserDashboard = () => {
     }
   };
 
+  const fetchOrders = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/pm/v1/pedidos`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      setOrders(response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setError('Error al cargar los pedidos');
+    }
+  };
+
+  const handleOrderStatusChange = async (orderId, newStatus) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      const response = await axios.put(`${LOCAL_URL_API}/wp-json/pm/v1/pedidos/${orderId}`, {
+        ...order,
+        estado: newStatus
+      });
+
+      setOrders(orders.map(o => o.id === orderId ? response.data : o));
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      setError('Error al actualizar el estado del pedido');
+    }
+  };
+
+  const handleOrderCreated = (newOrder) => {
+    setOrders([...orders, newOrder]);
+  };
+
   if (loading) {
     return <div className="loading">Cargando...</div>;
   }
@@ -181,13 +228,76 @@ const UserDashboard = () => {
   const inProgressTasks = filteredTasks.filter(task => task.estado === 'en_progreso');
   const completedTasks = filteredTasks.filter(task => task.estado === 'completada');
 
+  const renderSalesTab = () => (
+    <div className="sales-overview">
+      <div className="sales-header">
+        <h2>Gestión de Ventas</h2>
+      </div>
+
+      <div className="sales-content">
+        <div className="clients-section">
+          <h3>Clientes</h3>
+          <div className="clients-grid">
+            {clients.map(client => (
+              <ClientCard key={client.id} client={client} />
+            ))}
+          </div>
+        </div>
+
+        <div className="products-section">
+          <h3>Productos</h3>
+          <div className="products-grid">
+            {products.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderOrdersTab = () => (
+    <div className="orders-overview">
+      <div className="orders-header">
+        <h2>Gestión de Pedidos</h2>
+        <div className="orders-actions">
+          <button 
+            className="btn-create"
+            onClick={() => setShowCreateOrder(true)}
+          >
+            <i className="fas fa-plus"></i> Nuevo Pedido
+          </button>
+        </div>
+      </div>
+
+      <div className="orders-content">
+        {orders.map(order => (
+          <OrderCard 
+            key={order.id} 
+            order={order}
+            onStatusChange={handleOrderStatusChange}
+          />
+        ))}
+      </div>
+
+      {showCreateOrder && (
+        <CreateOrder
+          onClose={() => setShowCreateOrder(false)}
+          onOrderCreated={handleOrderCreated}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className="user-dashboard">
       <div className="dashboard-header">
         <h1>Panel de Usuario</h1>
         <div className="user-info">
-          <p>Bienvenido, {userName}</p>
-          <p>Email: {userEmail}</p>
+          <span>Bienvenido, {user?.user_nicename}</span>
+          <button onClick={logout} className="btn-logout">
+            Cerrar Sesión
+          </button>
         </div>
       </div>
 
@@ -201,132 +311,27 @@ const UserDashboard = () => {
 
       <div className="dashboard-tabs">
         <button 
-          className={`tab-button ${activeTab === 'tareas' ? 'active' : ''}`}
-          onClick={() => setActiveTab('tareas')}
-        >
-          Mis Tareas
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'proyectos' ? 'active' : ''}`}
+          className={activeTab === 'proyectos' ? 'active' : ''}
           onClick={() => setActiveTab('proyectos')}
         >
-          Mis Proyectos
+          Proyectos
         </button>
         <button 
-          className={`tab-button ${activeTab === 'ventas' ? 'active' : ''}`}
+          className={activeTab === 'ventas' ? 'active' : ''}
           onClick={() => setActiveTab('ventas')}
         >
           Ventas
         </button>
+        <button 
+          className={activeTab === 'pedidos' ? 'active' : ''}
+          onClick={() => setActiveTab('pedidos')}
+        >
+          Pedidos
+        </button>
       </div>
 
       <div className="dashboard-content">
-        {activeTab === 'tareas' ? (
-          <div className="tasks-container">
-            <div className="project-filter">
-              <label htmlFor="project-select">Filtrar por proyecto:</label>
-              <select
-                id="project-select"
-                value={selectedProjectFilter}
-                onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                className="project-select"
-              >
-                <option value="all">Todos los proyectos</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.title.rendered}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="tasks-board">
-              <div className="tasks-column">
-                <h2>Pendientes ({pendingTasks.length})</h2>
-                <div className="tasks-list">
-                  {pendingTasks.length === 0 ? (
-                    <p className="no-tasks">No hay tareas pendientes</p>
-                  ) : (
-                    pendingTasks.map(task => (
-                      <div key={task.nombre} className="task-card pending">
-                        <h3>{task.nombre}</h3>
-                        <p>{task.descripcion}</p>
-                        <p className="project-name">Proyecto: {task.projectTitle}</p>
-                        <div className="task-actions">
-                          <select
-                            value={task.estado}
-                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, task.projectId)}
-                            className="status-select"
-                          >
-                            <option value="pendiente">Pendiente</option>
-                            <option value="en_progreso">En Progreso</option>
-                            <option value="completada">Completada</option>
-                          </select>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="tasks-column">
-                <h2>En Progreso ({inProgressTasks.length})</h2>
-                <div className="tasks-list">
-                  {inProgressTasks.length === 0 ? (
-                    <p className="no-tasks">No hay tareas en progreso</p>
-                  ) : (
-                    inProgressTasks.map(task => (
-                      <div key={task.nombre} className="task-card in-progress">
-                        <h3>{task.nombre}</h3>
-                        <p>{task.descripcion}</p>
-                        <p className="project-name">Proyecto: {task.projectTitle}</p>
-                        <div className="task-actions">
-                          <select
-                            value={task.estado}
-                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, task.projectId)}
-                            className="status-select"
-                          >
-                            <option value="pendiente">Pendiente</option>
-                            <option value="en_progreso">En Progreso</option>
-                            <option value="completada">Completada</option>
-                          </select>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="tasks-column">
-                <h2>Completadas ({completedTasks.length})</h2>
-                <div className="tasks-list">
-                  {completedTasks.length === 0 ? (
-                    <p className="no-tasks">No hay tareas completadas</p>
-                  ) : (
-                    completedTasks.map(task => (
-                      <div key={task.nombre} className="task-card completed">
-                        <h3>{task.nombre}</h3>
-                        <p>{task.descripcion}</p>
-                        <p className="project-name">Proyecto: {task.projectTitle}</p>
-                        <div className="task-actions">
-                          <select
-                            value={task.estado}
-                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, task.projectId)}
-                            className="status-select"
-                          >
-                            <option value="pendiente">Pendiente</option>
-                            <option value="en_progreso">En Progreso</option>
-                            <option value="completada">Completada</option>
-                          </select>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : activeTab === 'proyectos' ? (
+        {activeTab === 'proyectos' ? (
           <div className="projects-overview">
             <h2>Mis Proyectos</h2>
             {projects.length === 0 ? (
@@ -375,46 +380,10 @@ const UserDashboard = () => {
               </div>
             )}
           </div>
+        ) : activeTab === 'ventas' ? (
+          renderSalesTab()
         ) : (
-          <div className="sales-overview">
-            <div className="sales-header">
-              <h2>Gestión de Ventas</h2>
-            </div>
-
-            <div className="sales-content">
-              <div className="clients-section">
-                <h3>Clientes</h3>
-                <div className="clients-grid">
-                  {clients.map(client => (
-                    <div key={client.id} className="client-card">
-                      <h4>{client.title.rendered || client.title}</h4>
-                      <div className="client-details">
-                        <p><strong>Email:</strong> {client.meta?.email || ''}</p>
-                        <p><strong>Teléfono:</strong> {client.meta?.telefono || ''}</p>
-                        <p><strong>Dirección:</strong> {client.meta?.direccion || ''}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="products-section">
-                <h3>Productos</h3>
-                <div className="products-grid">
-                  {products.map(product => (
-                    <div key={product.id} className="product-card">
-                      <h4>{product.title.rendered || product.title}</h4>
-                      <div className="product-details">
-                        <p><strong>Precio:</strong> ${product.meta?.precio || 0}</p>
-                        <p><strong>Stock:</strong> {product.meta?.stock || 0}</p>
-                        <p>{product.content?.rendered || product.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          renderOrdersTab()
         )}
       </div>
     </div>

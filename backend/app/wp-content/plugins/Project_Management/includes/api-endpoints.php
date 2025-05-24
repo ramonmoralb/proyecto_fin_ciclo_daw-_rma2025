@@ -81,6 +81,42 @@ add_action('rest_api_init', function () {
         'callback' => 'delete_producto',
         'permission_callback' => 'pm_check_permissions'
     ));
+
+    // Endpoint para crear un nuevo pedido
+    register_rest_route('pm/v1', '/pedidos', array(
+        'methods' => 'POST',
+        'callback' => 'create_pedido',
+        'permission_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ));
+
+    // Endpoint para obtener todos los pedidos
+    register_rest_route('pm/v1', '/pedidos', array(
+        'methods' => 'GET',
+        'callback' => 'get_pedidos',
+        'permission_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ));
+
+    // Endpoint para actualizar estado del pedido
+    register_rest_route('pm/v1', '/pedidos/(?P<id>\d+)', array(
+        'methods' => 'PUT',
+        'callback' => 'update_pedido_status',
+        'permission_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ));
+
+    // Endpoint para eliminar un pedido
+    register_rest_route('pm/v1', '/pedidos/(?P<id>\d+)', array(
+        'methods' => 'DELETE',
+        'callback' => 'delete_pedido',
+        'permission_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ));
 });
 
 // Función para crear un nuevo cliente
@@ -255,6 +291,251 @@ function delete_producto($request) {
 
     if (!$result) {
         return new WP_Error('delete_failed', 'Error al eliminar el producto', array('status' => 500));
+    }
+
+    return array('success' => true);
+}
+
+// Función para crear un nuevo pedido
+function create_pedido($request) {
+    try {
+        // Agregar headers CORS
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type');
+        header('Access-Control-Allow-Credentials: true');
+
+        // Manejar preflight OPTIONS request
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            status_header(200);
+            exit();
+        }
+
+        // Verificar autenticación
+        if (!is_user_logged_in()) {
+            error_log('User not logged in when creating order');
+            return new WP_Error('unauthorized', 'Usuario no autenticado', array('status' => 401));
+        }
+
+        $params = $request->get_params();
+        error_log('Received order data: ' . print_r($params, true));
+        
+        // Validar campos requeridos
+        if (empty($params['cliente_id'])) {
+            error_log('Missing cliente_id');
+            return new WP_Error('missing_fields', 'El cliente es requerido', array('status' => 400));
+        }
+
+        if (empty($params['productos']) || !is_array($params['productos'])) {
+            error_log('Missing or invalid productos');
+            return new WP_Error('missing_fields', 'Los productos son requeridos', array('status' => 400));
+        }
+
+        // Verificar que el cliente existe
+        $cliente = get_post($params['cliente_id']);
+        if (!$cliente) {
+            error_log('Cliente not found: ' . $params['cliente_id']);
+            return new WP_Error('invalid_client', 'Cliente no encontrado', array('status' => 400));
+        }
+
+        // Crear el post del pedido
+        $post_data = array(
+            'post_title'    => 'Pedido #' . time(),
+            'post_status'   => 'publish',
+            'post_type'     => 'pedidos',
+            'post_author'   => get_current_user_id()
+        );
+
+        error_log('Creating order with data: ' . print_r($post_data, true));
+
+        $post_id = wp_insert_post($post_data);
+
+        if (is_wp_error($post_id)) {
+            error_log('Error creating order post: ' . $post_id->get_error_message());
+            return $post_id;
+        }
+
+        // Calcular el total del pedido
+        $total = 0;
+        $productos_data = array();
+
+        foreach ($params['productos'] as $producto) {
+            if (empty($producto['producto_id']) || empty($producto['cantidad'])) {
+                error_log('Invalid product data: ' . print_r($producto, true));
+                continue;
+            }
+
+            $producto_post = get_post($producto['producto_id']);
+            if (!$producto_post) {
+                error_log('Product not found: ' . $producto['producto_id']);
+                continue;
+            }
+
+            $precio = get_post_meta($producto['producto_id'], 'precio', true);
+            if (!$precio) {
+                error_log('No price found for product: ' . $producto['producto_id']);
+                continue;
+            }
+
+            $subtotal = $precio * $producto['cantidad'];
+            $total += $subtotal;
+
+            $productos_data[] = array(
+                'producto_id' => $producto['producto_id'],
+                'cantidad' => $producto['cantidad'],
+                'precio_unitario' => $precio,
+                'subtotal' => $subtotal
+            );
+        }
+
+        if (empty($productos_data)) {
+            error_log('No valid products found in order');
+            wp_delete_post($post_id, true);
+            return new WP_Error('invalid_products', 'No hay productos válidos en el pedido', array('status' => 400));
+        }
+
+        // Guardar los campos personalizados
+        update_post_meta($post_id, 'cliente_id', $params['cliente_id']);
+        update_post_meta($post_id, 'productos', $productos_data);
+        update_post_meta($post_id, 'total', $total);
+        update_post_meta($post_id, 'estado', 'pendiente');
+
+        error_log('Order created successfully with ID: ' . $post_id);
+
+        // Obtener y devolver el pedido creado
+        $pedido = get_post($post_id);
+        $response = array(
+            'id' => $pedido->ID,
+            'title' => $pedido->post_title,
+            'meta' => array(
+                'cliente' => array(
+                    'id' => $params['cliente_id'],
+                    'nombre' => $cliente->post_title
+                ),
+                'productos' => $productos_data,
+                'total' => $total,
+                'estado' => 'pendiente'
+            )
+        );
+
+        return rest_ensure_response($response);
+
+    } catch (Exception $e) {
+        error_log('Exception in create_pedido: ' . $e->getMessage());
+        return new WP_Error('server_error', 'Error interno del servidor: ' . $e->getMessage(), array('status' => 500));
+    }
+}
+
+// Función para obtener todos los pedidos
+function get_pedidos() {
+    // Agregar headers CORS
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, OPTIONS');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type');
+    header('Access-Control-Allow-Credentials: true');
+
+    // Manejar preflight OPTIONS request
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        status_header(200);
+        exit();
+    }
+
+    $args = array(
+        'post_type' => 'pedidos',
+        'posts_per_page' => -1,
+        'post_status' => 'publish'
+    );
+
+    $pedidos = get_posts($args);
+    $response = array();
+
+    foreach ($pedidos as $pedido) {
+        $cliente_id = get_post_meta($pedido->ID, 'cliente_id', true);
+        $cliente = get_post($cliente_id);
+        
+        $response[] = array(
+            'id' => $pedido->ID,
+            'title' => $pedido->post_title,
+            'date' => $pedido->post_date,
+            'modified' => $pedido->post_modified,
+            'meta' => array(
+                'cliente' => array(
+                    'id' => $cliente_id,
+                    'nombre' => $cliente ? $cliente->post_title : 'Cliente no encontrado'
+                ),
+                'productos' => get_post_meta($pedido->ID, 'productos', true),
+                'total' => get_post_meta($pedido->ID, 'total', true),
+                'estado' => get_post_meta($pedido->ID, 'estado', true)
+            )
+        );
+    }
+
+    return $response;
+}
+
+// Función para actualizar estado del pedido
+function update_pedido_status($request) {
+    // Agregar headers CORS
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: PUT, OPTIONS');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type');
+    header('Access-Control-Allow-Credentials: true');
+
+    // Manejar preflight OPTIONS request
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        status_header(200);
+        exit();
+    }
+
+    $id = $request['id'];
+    $params = $request->get_params();
+    
+    if (!get_post($id)) {
+        return new WP_Error('not_found', 'Pedido no encontrado', array('status' => 404));
+    }
+
+    if (empty($params['estado'])) {
+        return new WP_Error('missing_status', 'El estado es requerido', array('status' => 400));
+    }
+
+    // Validar que el estado sea válido
+    $estados_validos = array('pendiente', 'servido');
+    if (!in_array($params['estado'], $estados_validos)) {
+        return new WP_Error('invalid_status', 'Estado no válido', array('status' => 400));
+    }
+
+    update_post_meta($id, 'estado', $params['estado']);
+
+    return array(
+        'id' => $id,
+        'estado' => $params['estado']
+    );
+}
+
+// Función para eliminar un pedido
+function delete_pedido($request) {
+    // Agregar headers CORS
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type');
+    header('Access-Control-Allow-Credentials: true');
+
+    // Manejar preflight OPTIONS request
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        status_header(200);
+        exit();
+    }
+
+    $id = $request['id'];
+    
+    if (!get_post($id)) {
+        return new WP_Error('not_found', 'Pedido no encontrado', array('status' => 404));
+    }
+
+    $result = wp_delete_post($id, true);
+
+    if (!$result) {
+        return new WP_Error('delete_failed', 'Error al eliminar el pedido', array('status' => 500));
     }
 
     return array('success' => true);
