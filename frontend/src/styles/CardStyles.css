@@ -17,17 +17,76 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
 .card-header {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
 }
 
-.card-header h4 {
+.card-header h3 {
   margin: 0;
+  font-size: 1.2rem;
   color: #333;
-  font-size: 1.1rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.card-content {
+  padding: 1rem;
+}
+
+.card-content p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+.card-orders {
+  padding: 1rem;
+  border-top: 1px solid #e9ecef;
+  background: #f8f9fa;
+}
+
+.btn-view-orders {
+  padding: 0.5rem 1rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.btn-view-orders:hover {
+  background: #0056b3;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .card-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 .btn-expand {
@@ -44,12 +103,6 @@
 .btn-expand:hover {
   background: #f0f0f0;
   color: #333;
-}
-
-.card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
 }
 
 .basic-info {
