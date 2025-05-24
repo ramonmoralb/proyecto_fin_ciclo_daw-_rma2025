@@ -296,20 +296,23 @@ const ProjectDashboard = () => {
     }
   };
 
-  const handleDeleteTask = async (taskId) => {
+  const handleDeleteTask = async (taskId, projectId) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.')) {
       return;
     }
 
     try {
       const token = localStorage.getItem('jwtToken');
-      const updatedTasks = selectedProject.meta.tareas.filter(task => task.nombre !== taskId);
+      const project = projects.find(p => p.id === projectId);
+      const updatedTasks = project.meta.tareas.filter(task => task.nombre !== taskId);
 
       const response = await axios.post(
-        `${LOCAL_URL_API}wp-json/pm/v1/tasks/${selectedProject.id}/update`,
+        `${LOCAL_URL_API}wp-json/wp/v2/proyectos/${projectId}`,
         {
-          task_name: taskId,
-          new_status: 'deleted'
+          meta: {
+            tareas: updatedTasks,
+            participantes: project.meta.participantes || []
+          }
         },
         {
           headers: {
@@ -320,13 +323,28 @@ const ProjectDashboard = () => {
       );
 
       if (response.data) {
+        setProjects(prevProjects => 
+          prevProjects.map(p => 
+            p.id === projectId 
+              ? {
+                  ...p,
+                  meta: {
+                    ...p.meta,
+                    tareas: updatedTasks
+                  }
+                }
+              : p
+          )
+        );
         setSelectedProject(prev => ({
           ...prev,
           meta: {
             ...prev.meta,
-            tareas: response.data.tareas
+            tareas: updatedTasks
           }
         }));
+        setSuccessMessage('Tarea eliminada exitosamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
       }
     } catch (error) {
       console.error('Error al eliminar tarea:', error);
@@ -459,7 +477,10 @@ const ProjectDashboard = () => {
                           {task.estado === 'completada' && (
                             <button 
                               className="btn-delete-task"
-                              onClick={() => handleDeleteTask(task.nombre)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTask(task.nombre, selectedProject.id);
+                              }}
                               title="Eliminar tarea"
                             >
                               <i className="fas fa-trash"></i>

@@ -10,7 +10,7 @@ import '../styles/UserDashboard.css';
 import '../styles/SalesStyles.css';
 
 const UserDashboard = () => {
-  const { user, logout } = useAuth();
+  const { userRole, isAuthenticated, user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('proyectos');
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
@@ -21,17 +21,23 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('all');
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     if (activeTab === 'proyectos') {
       fetchProjects();
+      fetchUsers();
     } else if (activeTab === 'ventas') {
       fetchClients();
       fetchProducts();
     } else if (activeTab === 'pedidos') {
       fetchOrders();
     }
-  }, [activeTab]);
+  }, [activeTab, isAuthenticated]);
 
   const fetchProjects = async () => {
     try {
@@ -48,7 +54,7 @@ const UserDashboard = () => {
 
       // Filtrar proyectos según el rol del usuario
       let userProjects;
-      if (user.user_role === 'project_user') {
+      if (userRole === 'project_user') {
         // Obtener el ID del usuario actual
         const userResponse = await axios.get(
           `${LOCAL_URL_API}wp-json/wp/v2/users/me`,
@@ -79,6 +85,30 @@ const UserDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const response = await axios.get(
+        `${LOCAL_URL_API}wp-json/wp/v2/users`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+      setError('Error al cargar los usuarios');
+    }
+  };
+
+  const getUserName = (userId) => {
+    const user = users.find(u => u.id.toString() === userId.toString());
+    return user ? user.name : 'No asignado';
   };
 
   const handleUpdateTaskStatus = async (taskId, newStatus, projectId) => {
@@ -202,6 +232,64 @@ const UserDashboard = () => {
 
   const handleOrderCreated = (newOrder) => {
     setOrders([...orders, newOrder]);
+  };
+
+  const renderProjectDetails = (project) => {
+    return (
+      <div className="project-details">
+        <div className="project-details-header">
+          <h2>{project.title.rendered}</h2>
+        </div>
+
+        <div className="project-details-content">
+          <div className="project-info">
+            <div className="info-section">
+              <h3>Descripción</h3>
+              <div dangerouslySetInnerHTML={{ __html: project.content.rendered }} />
+            </div>
+
+            <div className="info-section">
+              <h3>Tareas</h3>
+              <div className="tasks-list">
+                {project.meta?.tareas?.length > 0 ? (
+                  project.meta.tareas.map(task => (
+                    <div key={task.nombre} className="task-card">
+                      <div className="task-header">
+                        <h4>{task.nombre}</h4>
+                        <div className="task-actions">
+                          <select
+                            className={`status-select ${task.estado}`}
+                            value={task.estado}
+                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, project.id)}
+                          >
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_progreso">En Progreso</option>
+                            <option value="completada">Completada</option>
+                          </select>
+                        </div>
+                      </div>
+                      <p>{task.descripcion}</p>
+                      <div className="task-meta">
+                        <span className={`priority ${task.prioridad}`}>
+                          {task.prioridad}
+                        </span>
+                        {task.asignado && (
+                          <span className="assigned-to">
+                            Asignado a: {getUserName(task.asignado)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="no-tasks">No hay tareas asignadas</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -340,41 +428,7 @@ const UserDashboard = () => {
               <div className="projects-grid">
                 {projects.map(project => (
                   <div key={project.id} className="project-card">
-                    <h3>{project.title.rendered}</h3>
-                    <p>{project.content.rendered}</p>
-                    <div className="project-stats">
-                      <div className="stat">
-                        <span className="stat-label">Tareas Totales:</span>
-                        <span className="stat-value">{project.meta?.tareas?.length || 0}</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label">Pendientes:</span>
-                        <span className="stat-value">
-                          {project.meta?.tareas?.filter(t => t.estado === 'pendiente').length || 0}
-                        </span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label">En Progreso:</span>
-                        <span className="stat-value">
-                          {project.meta?.tareas?.filter(t => t.estado === 'en_progreso').length || 0}
-                        </span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label">Completadas:</span>
-                        <span className="stat-value">
-                          {project.meta?.tareas?.filter(t => t.estado === 'completada').length || 0}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      className="btn-view-tasks"
-                      onClick={() => {
-                        setSelectedProjectFilter(project.id.toString());
-                        setActiveTab('tareas');
-                      }}
-                    >
-                      Ver Tareas
-                    </button>
+                    {renderProjectDetails(project)}
                   </div>
                 ))}
               </div>
