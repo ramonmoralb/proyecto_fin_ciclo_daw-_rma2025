@@ -215,18 +215,35 @@ const UserDashboard = () => {
 
   const handleOrderStatusChange = async (orderId, newStatus) => {
     try {
-      const order = orders.find(o => o.id === orderId);
-      if (!order) return;
+      const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        setError('No hay token de autenticación');
+        return;
+      }
 
-      const response = await axios.put(`${LOCAL_URL_API}/wp-json/pm/v1/pedidos/${orderId}`, {
-        ...order,
-        estado: newStatus
-      });
+      const response = await axios.put(
+        `${LOCAL_URL_API}wp-json/pm/v1/pedidos/${orderId}`,
+        { estado: newStatus },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      setOrders(orders.map(o => o.id === orderId ? response.data : o));
+      if (response.data) {
+        setOrders(orders.map(o => 
+          o.id === orderId 
+            ? { ...o, meta: { ...o.meta, estado: newStatus } }
+            : o
+        ));
+        setSuccessMessage('Estado del pedido actualizado correctamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
     } catch (error) {
       console.error('Error updating order status:', error);
-      setError('Error al actualizar el estado del pedido');
+      setError(error.response?.data?.message || 'Error al actualizar el estado del pedido');
     }
   };
 

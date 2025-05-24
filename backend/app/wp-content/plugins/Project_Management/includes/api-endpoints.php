@@ -138,7 +138,7 @@ add_action('rest_api_init', function () {
         'methods' => 'PUT',
         'callback' => 'update_pedido_status',
         'permission_callback' => function() {
-            return current_user_can('edit_posts');
+            return is_user_logged_in();
         }
     ));
 
@@ -349,6 +349,20 @@ function get_client_orders($request) {
     $response = array();
 
     foreach ($pedidos as $pedido) {
+        $productos = get_post_meta($pedido->ID, 'productos', true);
+        $productos_con_nombres = array();
+
+        foreach ($productos as $producto) {
+            $producto_post = get_post($producto['producto_id']);
+            $productos_con_nombres[] = array(
+                'producto_id' => $producto['producto_id'],
+                'nombre' => $producto_post ? $producto_post->post_title : 'Producto no encontrado',
+                'cantidad' => $producto['cantidad'],
+                'precio_unitario' => $producto['precio_unitario'],
+                'subtotal' => $producto['subtotal']
+            );
+        }
+
         $response[] = array(
             'id' => $pedido->ID,
             'title' => $pedido->post_title,
@@ -359,7 +373,7 @@ function get_client_orders($request) {
                     'id' => $cliente_id,
                     'nombre' => get_the_title($cliente_id)
                 ),
-                'productos' => get_post_meta($pedido->ID, 'productos', true),
+                'productos' => $productos_con_nombres,
                 'total' => get_post_meta($pedido->ID, 'total', true),
                 'estado' => get_post_meta($pedido->ID, 'estado', true)
             )
@@ -427,12 +441,6 @@ function update_pedido_status($request) {
             return new WP_Error('unauthorized', 'Usuario no autenticado', array('status' => 401));
         }
 
-        // Verificar permisos
-        if (!current_user_can('edit_posts')) {
-            error_log('User does not have required permissions');
-            return new WP_Error('forbidden', 'No tiene permisos para actualizar pedidos', array('status' => 403));
-        }
-
         $id = $request['id'];
         $params = $request->get_params();
         
@@ -458,20 +466,37 @@ function update_pedido_status($request) {
         }
 
         // Actualizar el estado
-        $update_result = update_post_meta($id, 'estado', $params['estado']);
+        $update_result = update_post_meta($id, 'estado', sanitize_text_field($params['estado']));
         
         if ($update_result === false) {
             error_log('Failed to update order status');
             return new WP_Error('update_failed', 'Error al actualizar el estado del pedido', array('status' => 500));
         }
 
-        error_log('Order status updated successfully');
-        
-        return array(
+        // Obtener el pedido actualizado
+        $pedido_actualizado = get_post($id);
+        $productos = get_post_meta($id, 'productos', true);
+        $cliente_id = get_post_meta($id, 'cliente_id', true);
+        $cliente = get_post($cliente_id);
+
+        $response = array(
             'id' => $id,
-            'estado' => $params['estado'],
-            'message' => 'Estado del pedido actualizado correctamente'
+            'title' => $pedido_actualizado->post_title,
+            'date' => $pedido_actualizado->post_date,
+            'modified' => $pedido_actualizado->post_modified,
+            'meta' => array(
+                'cliente' => array(
+                    'id' => $cliente_id,
+                    'nombre' => $cliente ? $cliente->post_title : 'Cliente no encontrado'
+                ),
+                'productos' => $productos,
+                'total' => get_post_meta($id, 'total', true),
+                'estado' => $params['estado']
+            )
         );
+
+        error_log('Order status updated successfully');
+        return rest_ensure_response($response);
 
     } catch (Exception $e) {
         error_log('Exception in update_pedido_status: ' . $e->getMessage());
@@ -558,7 +583,7 @@ function create_pedido($request) {
             return $post_id;
         }
 
-        // Calcular el total del pedido
+        // Calcular el total del pedido y actualizar stock
         $total = 0;
         $productos_data = array();
 
@@ -582,8 +607,20 @@ function create_pedido($request) {
             $subtotal = $precio_unitario * $cantidad;
             $total += $subtotal;
 
+            // Actualizar stock
+            $stock_actual = intval(get_post_meta($producto['producto_id'], 'stock', true));
+            $nuevo_stock = $stock_actual - $cantidad;
+            
+            if ($nuevo_stock < 0) {
+                wp_delete_post($post_id, true);
+                return new WP_Error('insufficient_stock', 'Stock insuficiente para el producto: ' . $producto_post->post_title, array('status' => 400));
+            }
+
+            update_post_meta($producto['producto_id'], 'stock', $nuevo_stock);
+
             $productos_data[] = array(
                 'producto_id' => strval($producto['producto_id']),
+                'nombre' => $producto_post->post_title,
                 'cantidad' => $cantidad,
                 'precio_unitario' => $precio_unitario,
                 'subtotal' => $subtotal
