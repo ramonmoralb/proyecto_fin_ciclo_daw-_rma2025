@@ -22,6 +22,11 @@ const UserDashboard = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('all');
   const [users, setUsers] = useState([]);
+  const [newProduct, setNewProduct] = useState({
+    nombre: '',
+    precio: '',
+    stock: ''
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -395,16 +400,7 @@ const UserDashboard = () => {
   );
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <h1>Panel de Usuario</h1>
-        <div className="user-info">
-          <span>Bienvenido, {user?.user_nicename}</span>
-          <button onClick={logout} className="btn btn-danger">
-            Cerrar Sesión
-          </button>
-        </div>
-      </div>
+    <div className="user-dashboard">
 
       {successMessage && (
         <div className="message success-message">

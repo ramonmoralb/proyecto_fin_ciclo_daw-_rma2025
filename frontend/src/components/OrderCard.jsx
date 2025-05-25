@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import '../styles/CardStyles.css';
 
-const OrderCard = ({ order, onStatusChange }) => {
+const OrderCard = ({ order, onStatusChange, onDelete, userRole }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleStatusChange = (e) => {
@@ -16,6 +16,28 @@ const OrderCard = ({ order, onStatusChange }) => {
     >
       <div className="card-header">
         <h4>{order.title}</h4>
+        <div className="order-actions">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onStatusChange(order.id, order.meta.estado === 'pendiente' ? 'servido' : 'pendiente');
+            }}
+            className={`btn-status ${order.meta.estado}`}
+          >
+            {order.meta.estado === 'pendiente' ? 'Marcar como Servido' : 'Marcar como Pendiente'}
+          </button>
+          {userRole === 'super_administrador' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(order.id);
+              }}
+              className="btn-delete"
+            >
+              Eliminar
+            </button>
+          )}
+        </div>
         <button 
           className="btn-expand"
           onClick={(e) => {
@@ -41,7 +63,7 @@ const OrderCard = ({ order, onStatusChange }) => {
               <h5>Productos</h5>
               {order.meta?.productos?.map((producto, index) => (
                 <div key={index} className="product-item">
-                  <p><strong>Producto ID:</strong> {producto.producto_id}</p>
+                  <p><strong>Producto:</strong> {producto.nombre}</p>
                   <p><strong>Cantidad:</strong> {producto.cantidad}</p>
                   <p><strong>Precio Unitario:</strong> ${producto.precio_unitario}</p>
                   <p><strong>Subtotal:</strong> ${producto.subtotal}</p>

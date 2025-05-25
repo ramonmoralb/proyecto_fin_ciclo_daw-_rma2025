@@ -46,7 +46,6 @@ const ProjectDashboard = () => {
   const [showCreateProduct, setShowCreateProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({
     nombre: '',
-    descripcion: '',
     precio: '',
     stock: ''
   });
@@ -513,7 +512,7 @@ const ProjectDashboard = () => {
                               }}
                               title="Eliminar tarea"
                             >
-                              <i className="fas fa-trash"></i>
+                              <i className="fas fa-trash">Eliminar</i>
                             </button>
                           )}
                         </div>
@@ -650,7 +649,6 @@ const ProjectDashboard = () => {
         setShowCreateProduct(false);
         setNewProduct({
           nombre: '',
-          descripcion: '',
           precio: '',
           stock: ''
         });
@@ -785,16 +783,7 @@ const ProjectDashboard = () => {
   if (error) return <div className="error">{error}</div>;
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <h1>Panel de Proyectos</h1>
-        <div className="user-info">
-          <span>Bienvenido, {user?.user_nicename}</span>
-          <button onClick={logout} className="btn btn-danger">
-            Cerrar Sesión
-          </button>
-        </div>
-      </div>
+    <div className="project-dashboard">
 
       <div className="dashboard-tabs">
         <button 
@@ -818,8 +807,7 @@ const ProjectDashboard = () => {
       </div>
 
       <div className="dashboard-content">
-        {error && <div className="message error-message">{error}</div>}
-        {successMessage && <div className="message success-message">{successMessage}</div>}
+   
 
         {activeTab === 'projects' ? (
           <div className="projects-overview">
@@ -858,7 +846,7 @@ const ProjectDashboard = () => {
                               }}
                               title="Eliminar proyecto"
                             >
-                              <i className="fas fa-trash"></i>
+                              <i className="fas fa-trash">Eliminar</i>
                             </button>
                           </div>
                         </div>

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import ClientOrders from './ClientOrders';
 import '../styles/CardStyles.css';
+import '../styles/SalesStyles.css';
 
-const ClientCard = ({ client }) => {
+const ClientCard = ({ client, userRole, onDelete }) => {
   const [showOrders, setShowOrders] = useState(false);
 
   const handleEmail = () => {
@@ -20,6 +21,14 @@ const ClientCard = ({ client }) => {
           >
             {showOrders ? 'Ocultar Pedidos' : 'Ver Pedidos'}
           </button>
+          {userRole === 'super_administrador' && (
+            <button 
+              className="btn-delete"
+              onClick={() => onDelete(client.id)}
+            >
+              Eliminar
+            </button>
+          )}
         </div>
       </div>
       <div className="card-content">

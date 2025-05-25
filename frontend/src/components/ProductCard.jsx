@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import '../styles/CardStyles.css';
+import '../styles/SalesStyles.css';
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, userRole, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const stock = parseInt(product.meta?.stock || 0);
   const isLowStock = stock < 500;
@@ -13,6 +14,17 @@ const ProductCard = ({ product }) => {
     >
       <div className="card-header">
         <h4>{product.title.rendered || product.title}</h4>
+        {userRole === 'super_administrador' && (
+          <button 
+            className="btn-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(product.id);
+            }}
+          >
+            Eliminar
+          </button>
+        )}
         <button 
           className="btn-expand"
           onClick={(e) => {
@@ -35,11 +47,6 @@ const ProductCard = ({ product }) => {
 
         {isExpanded && (
           <div className="expanded-info">
-            <div className="info-section">
-              <h5>Descripción</h5>
-              <p>{product.content?.rendered || product.description || 'Sin descripción'}</p>
-            </div>
-            
             {isLowStock && (
               <div className="warning-message">
                 <p>⚠️ Stock bajo: Se recomienda realizar un nuevo pedido</p>

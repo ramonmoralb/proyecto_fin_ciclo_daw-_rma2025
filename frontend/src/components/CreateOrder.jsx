@@ -47,7 +47,16 @@ const CreateOrder = ({ onClose, onOrderCreated }) => {
           }
         }
       );
-      setProducts(response.data);
+      
+      // Asegurarnos de que cada producto tenga su descripción
+      const productsWithContent = response.data.map(product => ({
+        ...product,
+        content: {
+          rendered: product.content?.rendered || product.description || 'Sin descripción'
+        }
+      }));
+      
+      setProducts(productsWithContent);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -91,6 +100,8 @@ const CreateOrder = ({ onClose, onOrderCreated }) => {
 
     try {
       const token = localStorage.getItem('jwtToken');
+      
+      // Primero creamos el pedido
       const response = await axios.post(
         `${LOCAL_URL_API}wp-json/pm/v1/pedidos`,
         {
@@ -105,8 +116,46 @@ const CreateOrder = ({ onClose, onOrderCreated }) => {
         }
       );
 
+      // Actualizar el stock de cada producto
+      for (const item of selectedProducts) {
+        const product = products.find(p => p.id === item.producto_id);
+        if (product) {
+          const newStock = product.meta.stock - item.cantidad;
+          await axios.post(
+            `${LOCAL_URL_API}wp-json/wp/v2/productos/${product.id}`,
+            {
+              meta: {
+                ...product.meta,
+                stock: newStock
+              }
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+        }
+      }
+
+      // Actualizar la lista de productos localmente
+      const updatedProducts = products.map(product => {
+        const selectedProduct = selectedProducts.find(p => p.producto_id === product.id);
+        if (selectedProduct) {
+          return {
+            ...product,
+            meta: {
+              ...product.meta,
+              stock: product.meta.stock - selectedProduct.cantidad
+            }
+          };
+        }
+        return product;
+      });
+      setProducts(updatedProducts);
+
       onOrderCreated(response.data);
-      console.log(response.data);
       onClose();
     } catch (error) {
       console.error('Error creating order:', error);
@@ -185,10 +234,6 @@ const CreateOrder = ({ onClose, onOrderCreated }) => {
             >
               Añadir Producto
             </button>
-          </div>
-
-          <div className="order-total">
-            <h3>Total: ${calculateTotal().toFixed(2)}</h3>
           </div>
 
           <div className="form-actions">
