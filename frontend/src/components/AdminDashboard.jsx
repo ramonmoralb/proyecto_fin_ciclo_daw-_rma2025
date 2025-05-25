@@ -661,7 +661,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Agregar una función para actualizar el stock de un producto
   const updateProductStock = async (productId, newStock) => {
     try {
       const token = localStorage.getItem('jwtToken');
@@ -669,6 +668,22 @@ const AdminDashboard = () => {
       
       if (!product) return;
 
+      // Actualizar primero el estado local para una respuesta inmediata
+      setProducts(prevProducts => 
+        prevProducts.map(p => 
+          p.id === productId 
+            ? {
+                ...p,
+                meta: {
+                  ...p.meta,
+                  stock: newStock
+                }
+              }
+            : p
+        )
+      );
+
+      // Luego actualizar en el servidor
       const response = await axios.post(
         `${LOCAL_URL_API}wp-json/wp/v2/productos/${productId}`,
         {
@@ -685,29 +700,21 @@ const AdminDashboard = () => {
         }
       );
 
-      // Actualizar el producto en el estado local
-      setProducts(prevProducts => 
-        prevProducts.map(p => 
-          p.id === productId 
-            ? {
-                ...p,
-                meta: {
-                  ...p.meta,
-                  stock: newStock
-                }
-              }
-            : p
-        )
-      );
+      if (!response.data) {
+        // Si la actualización en el servidor falla, revertir el cambio local
+        await fetchProducts();
+        throw new Error('Error al actualizar el stock en el servidor');
+      }
 
       return response.data;
     } catch (error) {
       console.error('Error al actualizar stock:', error);
+      // Si hay un error, recargar los productos para asegurar consistencia
+      await fetchProducts();
       throw error;
     }
   };
 
-  // Modificar handleOrderStatusChange para actualizar el stock
   const handleOrderStatusChange = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem('jwtToken');
@@ -739,8 +746,30 @@ const AdminDashboard = () => {
         if (newStatus === 'servido') {
           const order = orders.find(o => o.id === orderId);
           if (order && order.meta.productos) {
+            // Actualizar el stock de cada producto
             for (const item of order.meta.productos) {
-              await updateProductStock(item.producto_id, item.cantidad);
+              const product = products.find(p => p.id === item.producto_id);
+              if (product) {
+                const newStock = parseInt(product.meta.stock) - parseInt(item.cantidad);
+                
+                // Actualizar el producto en el estado local
+                setProducts(prevProducts => 
+                  prevProducts.map(p => 
+                    p.id === item.producto_id 
+                      ? {
+                          ...p,
+                          meta: {
+                            ...p.meta,
+                            stock: newStock
+                          }
+                        }
+                      : p
+                  )
+                );
+
+                // Actualizar el stock en el servidor
+                await updateProductStock(item.producto_id, newStock);
+              }
             }
           }
         }
@@ -754,8 +783,20 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleOrderCreated = (newOrder) => {
-    setOrders([...orders, newOrder]);
+  const handleOrderCreated = async (newOrder) => {
+    try {
+      // Añadir el nuevo pedido a la lista
+      setOrders(prevOrders => [...prevOrders, newOrder]);
+
+      // Recargar los productos para actualizar el stock
+      await fetchProducts();
+
+      setSuccessMessage('Pedido creado exitosamente');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (error) {
+      console.error('Error al actualizar el stock:', error);
+      setError('Error al actualizar el stock de los productos');
+    }
   };
 
   const handleDeleteOrder = async (orderId) => {
@@ -1151,12 +1192,28 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteClient = async (clientId) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.')) {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este cliente? Esta acción eliminará también todos los pedidos asociados y no se puede deshacer.')) {
       return;
     }
 
     try {
       const token = localStorage.getItem('jwtToken');
+      
+      // Primero eliminar todos los pedidos del cliente
+      const clientOrders = orders.filter(order => order.meta?.cliente?.id === clientId);
+      for (const order of clientOrders) {
+        await axios.delete(
+          `${LOCAL_URL_API}wp-json/pm/v1/pedidos/${order.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+      }
+
+      // Luego eliminar el cliente
       const response = await axios.delete(
         `${LOCAL_URL_API}wp-json/pm/v1/clientes/${clientId}`,
         {
@@ -1168,13 +1225,16 @@ const AdminDashboard = () => {
       );
 
       if (response.data) {
+        // Actualizar el estado local
         setClients(clients.filter(client => client.id !== clientId));
-        setSuccessMessage('Cliente eliminado exitosamente');
+        setOrders(orders.filter(order => order.meta?.cliente?.id !== clientId));
+        
+        setSuccessMessage('Cliente y sus pedidos eliminados exitosamente');
         setTimeout(() => setSuccessMessage(''), 3000);
       }
     } catch (error) {
       console.error('Error al eliminar cliente:', error);
-      setError('Error al eliminar el cliente');
+      setError('Error al eliminar el cliente y sus pedidos');
     }
   };
 
