@@ -483,10 +483,8 @@ th {
 
 .project-dashboard {
   padding: 2rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  background-color: #f8f9fa;
-  min-height: 100vh;
 }
 
 .dashboard-header {

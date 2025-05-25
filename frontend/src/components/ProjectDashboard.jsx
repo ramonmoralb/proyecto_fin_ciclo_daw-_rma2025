@@ -168,7 +168,10 @@ const ProjectDashboard = () => {
           description: '',
           assignedUsers: []
         });
-        fetchProjects();
+        // Actualizar la lista de proyectos inmediatamente
+        setProjects(prevProjects => [...prevProjects, response.data]);
+        setSuccessMessage('Proyecto creado exitosamente');
+        setTimeout(() => setSuccessMessage(''), 3000);
       }
     } catch (error) {
       console.error('Error al crear proyecto:', error);
@@ -208,6 +211,7 @@ const ProjectDashboard = () => {
         }
       );
       
+      // Actualizar el proyecto seleccionado
       setSelectedProject({
         ...response.data,
         meta: {
@@ -216,6 +220,21 @@ const ProjectDashboard = () => {
         }
       });
 
+      // Actualizar la lista de proyectos
+      setProjects(prevProjects => 
+        prevProjects.map(p => 
+          p.id === selectedProject.id 
+            ? {
+                ...p,
+                meta: {
+                  ...p.meta,
+                  tareas: updatedTasks
+                }
+              }
+            : p
+        )
+      );
+
       setNewTask({
         title: '',
         description: '',
@@ -223,6 +242,8 @@ const ProjectDashboard = () => {
         assignedTo: ''
       });
       setShowCreateTask(false);
+      setSuccessMessage('Tarea creada exitosamente');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Error al crear tarea:', error);
       setError('Error al crear la tarea. Por favor, intenta de nuevo.');
@@ -388,8 +409,11 @@ const ProjectDashboard = () => {
   const handleProjectClick = async (project) => {
     try {
       setSelectedProject(project);
+      // Asegurarse de que los participantes se carguen correctamente
       if (project.meta?.participantes) {
         await fetchProjectParticipants(project.meta.participantes);
+        // Actualizar la lista de usuarios disponibles para asignar tareas
+        await fetchUsers();
       }
     } catch (error) {
       console.error('Error al cargar detalles del proyecto:', error);

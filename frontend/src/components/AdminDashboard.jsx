@@ -38,7 +38,8 @@ const AdminDashboard = () => {
   const [newProject, setNewProject] = useState({
     title: '',
     content: '',
-    status: 'publish'
+    status: 'publish',
+    assignedUsers: []
   });
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
@@ -321,6 +322,7 @@ const AdminDashboard = () => {
         }
       );
       
+      // Actualizar el proyecto seleccionado
       setSelectedProject({
         ...response.data,
         meta: {
@@ -328,6 +330,21 @@ const AdminDashboard = () => {
           tareas: updatedTasks
         }
       });
+
+      // Actualizar la lista de proyectos
+      setProjects(prevProjects => 
+        prevProjects.map(p => 
+          p.id === selectedProject.id 
+            ? {
+                ...p,
+                meta: {
+                  ...p.meta,
+                  tareas: updatedTasks
+                }
+              }
+            : p
+        )
+      );
 
       setNewTask({
         title: '',
@@ -446,7 +463,7 @@ const AdminDashboard = () => {
           status: newProject.status,
           meta: {
             tareas: [],
-            participantes: []
+            participantes: newProject.assignedUsers ? newProject.assignedUsers.map(id => id.toString()) : []
           }
         },
         {
@@ -462,9 +479,10 @@ const AdminDashboard = () => {
         setNewProject({
           title: '',
           content: '',
-          status: 'publish'
+          status: 'publish',
+          assignedUsers: []
         });
-        fetchProjects();
+        setProjects(prevProjects => [...prevProjects, response.data]);
         setSuccessMessage('Proyecto creado exitosamente');
         setTimeout(() => setSuccessMessage(''), 3000);
       }
@@ -720,92 +738,231 @@ const AdminDashboard = () => {
 
   const renderProjectsTab = () => (
     <div className="projects-overview">
-      <div className="projects-header">
-        <h2>Proyectos</h2>
-        <button 
-          className="btn-create"
-          onClick={() => setShowCreateProject(true)}
-        >
-          <i className="fas fa-plus"></i> Nuevo Proyecto
-        </button>
+      <div className="dashboard-header">
+        <h1>Panel de Administración de Proyectos</h1>
+        <div className="dashboard-actions">
+          <button className="btn btn-primary" onClick={() => setShowCreateProject(true)}>
+            <i className="fas fa-plus"></i> Nuevo Proyecto
+          </button>
+        </div>
       </div>
-      {projects.length === 0 ? (
-        <p>No hay proyectos disponibles</p>
-      ) : (
-        <div className="projects-grid">
-          {projects.map(project => (
-            <div key={project.id} className="project-card">
-              <div className="project-header">
-                <h3>{project.title.rendered}</h3>
-                <div className="project-actions">
+
+      {selectedProject ? (
+        <div className="project-details">
+          <div className="project-details-header">
+            <h2>{selectedProject.title.rendered}</h2>
+            <button 
+              className="btn-back"
+              onClick={() => setSelectedProject(null)}
+            >
+              <i className="fas fa-arrow-left"></i> Volver
+            </button>
+          </div>
+
+          <div className="project-details-content">
+            <div className="project-info">
+              <div className="info-section">
+                <h3>Descripción</h3>
+                <div dangerouslySetInnerHTML={{ __html: selectedProject.content.rendered }} />
+              </div>
+
+              <div className="info-section">
+                <h3>Participantes</h3>
+                <div className="participants-list">
+                  {projectParticipants.length > 0 ? (
+                    projectParticipants.map(participant => (
+                      <div key={participant.id} className="participant-card">
+                        <div className="participant-avatar">
+                          {participant.meta?.profile_image_url ? (
+                            <img 
+                              src={participant.meta.profile_image_url} 
+                              alt={participant.name}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.display = 'none';
+                                e.target.parentElement.querySelector('.avatar-placeholder').style.display = 'flex';
+                              }}
+                            />
+                          ) : (
+                            <div className="avatar-placeholder">
+                              {participant.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="participant-info">
+                          <h4>{participant.name}</h4>
+                          <p>{participant.email}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="no-participants">No hay participantes asignados</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="info-section">
+                <h3>Tareas</h3>
+                <div className="tasks-actions">
                   <button 
                     className="btn-create-task"
-                    onClick={() => {
-                      setSelectedProject(project);
-                      setShowCreateTask(true);
-                      fetchUsers(); // Asegurarse de cargar los usuarios al abrir el formulario
-                    }}
+                    onClick={() => setShowCreateTask(true)}
                   >
                     <i className="fas fa-plus"></i> Nueva Tarea
                   </button>
-                  <button 
-                    className="btn-delete"
-                    onClick={() => handleDeleteProject(project.id)}
-                    title="Eliminar proyecto"
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
                 </div>
-              </div>
-              <div className="project-content">
-                <div dangerouslySetInnerHTML={{ __html: project.content.rendered }} />
                 <div className="tasks-list">
-                  {project.meta?.tareas?.map(task => (
-                    <div key={task.nombre} className="task-card">
-                      <div className="task-header">
-                        <h4>{task.nombre}</h4>
-                        <div className="task-actions">
-                          <select
-                            className={`status-select ${task.estado}`}
-                            value={task.estado}
-                            onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, project.id)}
-                          >
-                            <option value="pendiente">Pendiente</option>
-                            <option value="en_progreso">En Progreso</option>
-                            <option value="completada">Completada</option>
-                          </select>
-                          {task.estado === 'completada' && (
-                            <button 
-                              className="btn-delete-task"
-                              onClick={() => handleDeleteTask(task.nombre, project.id)}
-                              title="Eliminar tarea"
+                  {selectedProject.meta?.tareas?.length > 0 ? (
+                    selectedProject.meta.tareas.map(task => (
+                      <div key={task.nombre} className="task-card">
+                        <div className="task-header">
+                          <h4>{task.nombre}</h4>
+                          <div className="task-actions">
+                            <select
+                              className={`status-select ${task.estado}`}
+                              value={task.estado}
+                              onChange={(e) => handleUpdateTaskStatus(task.nombre, e.target.value, selectedProject.id)}
                             >
-                              <i className="fas fa-trash"></i> Eliminar
-                            </button>
+                              <option value="pendiente">Pendiente</option>
+                              <option value="en_progreso">En Progreso</option>
+                              <option value="completada">Completada</option>
+                            </select>
+                            {task.estado === 'completada' && (
+                              <button 
+                                className="btn-delete-task"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTask(task.nombre, selectedProject.id);
+                                }}
+                                title="Eliminar tarea"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p>{task.descripcion}</p>
+                        <div className="task-meta">
+                          <span className={`priority ${task.prioridad}`}>
+                            {task.prioridad}
+                          </span>
+                          {task.asignado && (
+                            <span className="assigned-to">
+                              Asignado a: {getUserName(task.asignado)}
+                            </span>
                           )}
                         </div>
                       </div>
-                      <p>{task.descripcion}</p>
-                      <div className="task-meta">
-                        <span className={`priority ${task.prioridad}`}>
-                          {task.prioridad}
-                        </span>
-                        {task.asignado && (
-                          <span className="assigned-to">
-                            Asignado a: {getUserName(task.asignado)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="no-tasks">No hay tareas asignadas</p>
+                  )}
                 </div>
               </div>
             </div>
-          ))}
+          </div>
+        </div>
+      ) : (
+        <div className="list">
+          <h2>Proyectos</h2>
+          {projects.length === 0 ? (
+            <p>No hay proyectos disponibles</p>
+          ) : (
+            <div className="grid">
+              {projects.map(project => (
+                <div 
+                  key={project.id} 
+                  className="card"
+                  onClick={() => handleProjectClick(project)}
+                >
+                  <div className="card-header">
+                    <h3>{project.title.rendered}</h3>
+                    <div className="project-actions">
+                      <button 
+                        className="btn btn-danger" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject(project.id);
+                        }}
+                        title="Eliminar proyecto"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div dangerouslySetInnerHTML={{ __html: project.content.rendered }} />
+                  <div className="project-meta">
+                    <div className="meta-item">
+                      <i className="fas fa-users"></i>
+                      <span>Participantes: {project.meta?.participantes?.length || 0}</span>
+                    </div>
+                    <div className="meta-item">
+                      <i className="fas fa-tasks"></i>
+                      <span>Tareas: {project.meta?.tareas?.length || 0}</span>
+                    </div>
+                  </div>
+                  <button className="btn btn-primary">
+                    Ver Detalles
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {showCreateTask && selectedProject && (
+      {showCreateProject && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Crear Nuevo Proyecto</h2>
+            <form onSubmit={handleCreateProject}>
+              <div className="form-group">
+                <label>Título:</label>
+                <input
+                  type="text"
+                  value={newProject.title}
+                  onChange={(e) => setNewProject({...newProject, title: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Descripción:</label>
+                <textarea
+                  value={newProject.content}
+                  onChange={(e) => setNewProject({...newProject, content: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Participantes:</label>
+                <select
+                  multiple
+                  value={newProject.assignedUsers}
+                  onChange={(e) => setNewProject({
+                    ...newProject,
+                    assignedUsers: Array.from(e.target.selectedOptions, option => option.value)
+                  })}
+                >
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.roles.join(', ')})
+                    </option>
+                  ))}
+                </select>
+                <small>Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios</small>
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-success">Crear Proyecto</button>
+                <button type="button" className="btn btn-danger" onClick={() => setShowCreateProject(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateTask && (
         <div className="modal">
           <div className="modal-content">
             <h2>Crear Nueva Tarea</h2>
@@ -847,7 +1004,7 @@ const AdminDashboard = () => {
                   <option value="">Seleccionar usuario</option>
                   {users.map(user => (
                     <option key={user.id} value={user.id}>
-                      {user.name} ({user.roles.join(', ')})
+                      {user.name}
                     </option>
                   ))}
                 </select>
@@ -1109,40 +1266,6 @@ const AdminDashboard = () => {
           renderOrdersTab()
         )}
       </div>
-
-      {showCreateProject && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>Crear Nuevo Proyecto</h2>
-            <form onSubmit={handleCreateProject}>
-              <div className="form-group">
-                <label>Título del Proyecto:</label>
-                <input
-                  type="text"
-                  value={newProject.title}
-                  onChange={(e) => setNewProject({...newProject, title: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Descripción:</label>
-                <textarea
-                  value={newProject.content}
-                  onChange={(e) => setNewProject({...newProject, content: e.target.value})}
-                  required
-                  rows="5"
-                />
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn-submit">Crear Proyecto</button>
-                <button type="button" className="btn-cancel" onClick={() => setShowCreateProject(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {showCreateClient && (
         <div className="modal">
