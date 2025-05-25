@@ -71,16 +71,34 @@ const AdminDashboard = () => {
       return;
     }
 
-    fetchUsers();
-    fetchProjects();
-    fetchClients();
-    fetchProducts();
-    fetchOrders();
+    const initializeDashboard = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([
+          fetchUsers(),
+          fetchProjects(),
+          fetchClients(),
+          fetchProducts(),
+          fetchOrders()
+        ]);
+      } catch (error) {
+        console.error('Error inicializando el dashboard:', error);
+        setError('Error al cargar los datos del dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeDashboard();
   }, [userRole, isAuthenticated, navigate]);
 
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/wp/v2/users`,
         {
@@ -90,20 +108,39 @@ const AdminDashboard = () => {
           }
         }
       );
-      const filteredUsers = response.data.filter(user => 
-        !user.roles?.includes('administrator')
+      
+      // Filtrar solo usuarios project_user y project_admin
+      const projectUsers = response.data.filter(user => 
+        user.roles && (user.roles.includes('project_user') || user.roles.includes('project_admin'))
       );
-      setUsers(filteredUsers);
-      setLoading(false);
+      
+      if (selectedProject) {
+        const participantesIds = selectedProject.meta?.participantes || [];
+        const filteredUsers = projectUsers.filter(user => 
+          participantesIds.includes(user.id.toString())
+        );
+        setUsers(filteredUsers);
+      } else {
+        setUsers(projectUsers);
+      }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error al cargar los usuarios');
-      setLoading(false);
+      console.error('Error al cargar usuarios:', error);
+      throw error;
     }
+  };
+
+  const getUserName = (userId) => {
+    const user = users.find(u => u.id.toString() === userId.toString());
+    return user ? user.name : 'No asignado';
   };
 
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/wp/v2/proyectos/`,
         {
@@ -116,13 +153,17 @@ const AdminDashboard = () => {
       setProjects(response.data);
     } catch (error) {
       console.error('Error al cargar proyectos:', error);
-      setError('Error al cargar los proyectos');
+      throw error;
     }
   };
 
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/pm/v1/clientes`,
         {
@@ -132,17 +173,20 @@ const AdminDashboard = () => {
           }
         }
       );
-      console.log('Clientes recibidos:', response.data);
       setClients(response.data);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
-      setError('Error al cargar los clientes');
+      throw error;
     }
   };
 
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/pm/v1/productos`,
         {
@@ -152,17 +196,20 @@ const AdminDashboard = () => {
           }
         }
       );
-      console.log('Productos recibidos:', response.data);
       setProducts(response.data);
     } catch (error) {
       console.error('Error al cargar productos:', error);
-      setError('Error al cargar los productos');
+      throw error;
     }
   };
 
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('jwtToken');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
       const response = await axios.get(
         `${LOCAL_URL_API}wp-json/pm/v1/pedidos`,
         {
@@ -175,7 +222,8 @@ const AdminDashboard = () => {
       setOrders(response.data);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      setError('Error al cargar los pedidos');
+      // No lanzamos el error para que no bloquee la carga del dashboard
+      setOrders([]);
     }
   };
 
@@ -695,6 +743,7 @@ const AdminDashboard = () => {
                     onClick={() => {
                       setSelectedProject(project);
                       setShowCreateTask(true);
+                      fetchUsers(); // Asegurarse de cargar los usuarios al abrir el formulario
                     }}
                   >
                     <i className="fas fa-plus"></i> Nueva Tarea
@@ -743,7 +792,7 @@ const AdminDashboard = () => {
                         </span>
                         {task.asignado && (
                           <span className="assigned-to">
-                            Asignado a: {users.find(u => u.id.toString() === task.asignado)?.name || 'No asignado'}
+                            Asignado a: {getUserName(task.asignado)}
                           </span>
                         )}
                       </div>
@@ -753,6 +802,64 @@ const AdminDashboard = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showCreateTask && selectedProject && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Crear Nueva Tarea</h2>
+            <form onSubmit={handleCreateTask}>
+              <div className="form-group">
+                <label>Título:</label>
+                <input
+                  type="text"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Descripción:</label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Prioridad:</label>
+                <select
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                >
+                  <option value="baja">Baja</option>
+                  <option value="media">Media</option>
+                  <option value="alta">Alta</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Asignar a:</label>
+                <select
+                  value={newTask.assignedTo}
+                  onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
+                >
+                  <option value="">Seleccionar usuario</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.roles.join(', ')})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-success">Crear Tarea</button>
+                <button type="button" className="btn btn-danger" onClick={() => setShowCreateTask(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
@@ -973,10 +1080,8 @@ const AdminDashboard = () => {
                         value={newUser.role}
                         onChange={(e) => setNewUser({...newUser, role: e.target.value})}
                       >
-                        <option value="subscriber">Cliente</option>
-                        <option value="author">Vendedor</option>
-                        <option value="editor">Editor</option>
-                        <option value="administrator">Administrador</option>
+                        <option value="project_user">Usuario de Proyecto</option>
+                        <option value="project_admin">Administrador de Proyecto</option>
                       </select>
                     </div>
                     <div className="form-actions">
@@ -1031,64 +1136,6 @@ const AdminDashboard = () => {
               <div className="form-actions">
                 <button type="submit" className="btn-submit">Crear Proyecto</button>
                 <button type="button" className="btn-cancel" onClick={() => setShowCreateProject(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showCreateTask && selectedProject && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>Crear Nueva Tarea</h2>
-            <form onSubmit={handleCreateTask}>
-              <div className="form-group">
-                <label>Título:</label>
-                <input
-                  type="text"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Descripción:</label>
-                <textarea
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Prioridad:</label>
-                <select
-                  value={newTask.priority}
-                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                >
-                  <option value="baja">Baja</option>
-                  <option value="media">Media</option>
-                  <option value="alta">Alta</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Asignar a:</label>
-                <select
-                  value={newTask.assignedTo}
-                  onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
-                >
-                  <option value="">Seleccionar usuario</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn-submit">Crear Tarea</button>
-                <button type="button" className="btn-cancel" onClick={() => setShowCreateTask(false)}>
                   Cancelar
                 </button>
               </div>

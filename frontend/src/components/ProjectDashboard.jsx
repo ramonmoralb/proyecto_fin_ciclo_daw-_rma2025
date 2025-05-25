@@ -107,8 +107,9 @@ const ProjectDashboard = () => {
         }
       );
       
+      // Filtrar usuarios que son project_user o project_admin
       const projectUsers = response.data.filter(user => 
-        user.roles && user.roles.includes('project_user')
+        user.roles && (user.roles.includes('project_user') || user.roles.includes('project_admin'))
       );
       
       if (selectedProject) {
@@ -124,6 +125,11 @@ const ProjectDashboard = () => {
       console.error('Error al cargar usuarios:', error);
       setError('Error al cargar usuarios. Por favor, intenta de nuevo.');
     }
+  };
+
+  const getUserName = (userId) => {
+    const user = users.find(u => u.id.toString() === userId.toString());
+    return user ? user.name : 'No asignado';
   };
 
   useEffect(() => {
@@ -495,7 +501,7 @@ const ProjectDashboard = () => {
                         </span>
                         {task.asignado && (
                           <span className="assigned-to">
-                            Asignado a: {users.find(u => u.id.toString() === task.asignado)?.name || 'No asignado'}
+                            Asignado a: {getUserName(task.asignado)}
                           </span>
                         )}
                       </div>
