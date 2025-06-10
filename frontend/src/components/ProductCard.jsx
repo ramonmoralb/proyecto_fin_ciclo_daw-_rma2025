@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import '../styles/CardStyles.css';
-import '../styles/SalesStyles.css';
+import '../styles/ProductCard.css';
+import '../styles/base.css';
 
 const ProductCard = ({ product, userRole, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -25,15 +25,7 @@ const ProductCard = ({ product, userRole, onDelete }) => {
             Eliminar
           </button>
         )}
-        <button 
-          className="btn-expand"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-        >
-          {isExpanded ? '−' : '+'}
-        </button>
+      
       </div>
       
       <div className="card-content">

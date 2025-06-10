@@ -1,85 +1,112 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import LogoWebSVG from '../assets/LogoWebSVG.svg';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Home.css';
 
 const Home = () => {
+  const { isAuthenticated, userRole } = useAuth();
+
   return (
-    <div className="home-container">
-      <div className="hero-section">
-        <div className="logo-container">
-          <img src={LogoWebSVG} alt="Inn Project Management Logo" className="logo" />
-          <h1 className="app-title">Inn Project Management</h1>
-        </div>
-        <p className="hero-description">
-          Tu solución integral para la gestión de proyectos, clientes y productos
+    <div className="home">
+      <section className="hero-section">
+        <h1 className="hero-title">Inn Project Management</h1>
+        <p className="hero-subtitle">
+          Gestiona tus proyectos de manera eficiente y colaborativa. 
+          Una plataforma diseñada para equipos que buscan resultados excepcionales.
         </p>
-        <div className="cta-buttons">
-          <Link to="/login" className="btn-login">
+        <div className="hero-buttons">
+          {!isAuthenticated ? (
+            <Link to="/login" className="hero-button primary-button">
             Iniciar Sesión
           </Link>
+          ) : (
+            <Link 
+              to={
+                userRole === 'super_administrador' 
+                  ? '/admin' 
+                  : userRole === 'project_admin' 
+                    ? '/project-dashboard' 
+                    : '/user-dashboard'
+              } 
+              className="hero-button primary-button"
+            >
+              Ir al Dashboard
+            </Link>
+          )}
         </div>
-      </div>
+      </section>
 
-      <div className="features-section">
-        <h2>Características Principales</h2>
+      <section className="features-section">
         <div className="features-grid">
           <div className="feature-card">
-            <span className="feature-icon">📊</span>
-            <h3>Dashboard Intuitivo</h3>
-            <p>Visualiza el progreso de tus proyectos, gestiona clientes y productos desde un panel centralizado</p>
+            <div className="feature-icon">📊</div>
+            <h3 className="feature-title">Gestión Eficiente</h3>
+            <p className="feature-description">
+              Organiza y supervisa todos tus proyectos desde una interfaz intuitiva y fácil de usar.
+            </p>
           </div>
           <div className="feature-card">
-            <span className="feature-icon">👥</span>
-            <h3>Gestión de Clientes</h3>
-            <p>Mantén un registro detallado de tus clientes con información de contacto y seguimiento</p>
+            <div className="feature-icon">👥</div>
+            <h3 className="feature-title">Colaboración en Tiempo Real</h3>
+            <p className="feature-description">
+              Trabaja en equipo de manera efectiva con herramientas de comunicación integradas.
+            </p>
           </div>
           <div className="feature-card">
-            <span className="feature-icon">📦</span>
-            <h3>Control de Productos</h3>
-            <p>Administra tu inventario, precios y stock de productos de manera eficiente</p>
-          </div>
-          <div className="feature-card">
-            <span className="feature-icon">✅</span>
-            <h3>Gestión de Tareas</h3>
-            <p>Organiza y realiza seguimiento de todas tus tareas con estados y prioridades</p>
+            <div className="feature-icon">📈</div>
+            <h3 className="feature-title">Seguimiento de Progreso</h3>
+            <p className="feature-description">
+              Monitorea el avance de tus proyectos con métricas y reportes detallados.
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="how-it-works">
-        <h2>Beneficios Clave</h2>
-        <div className="steps-container">
-          <div className="step">
-            <div className="step-number">1</div>
-            <h3>Eficiencia</h3>
-            <p>Optimiza tus procesos de trabajo y gestión de recursos</p>
+      <section className="stats-section">
+        <div className="stats-grid">
+          <div className="stat-item">
+            <div className="stat-number">100+</div>
+            <div className="stat-label">Proyectos Completados</div>
           </div>
-          <div className="step">
-            <div className="step-number">2</div>
-            <h3>Organización</h3>
-            <p>Mantén todo tu negocio organizado en un solo lugar</p>
+          <div className="stat-item">
+            <div className="stat-number">50+</div>
+            <div className="stat-label">Equipos Activos</div>
           </div>
-          <div className="step">
-            <div className="step-number">3</div>
-            <h3>Colaboración</h3>
-            <p>Trabaja en equipo de manera coordinada y efectiva</p>
+          <div className="stat-item">
+            <div className="stat-number">1000+</div>
+            <div className="stat-label">Usuarios Satisfechos</div>
           </div>
-          <div className="step">
-            <div className="step-number">4</div>
-            <h3>Control</h3>
-            <p>Mantén el control total sobre tus proyectos y operaciones</p>
+          <div className="stat-item">
+            <div className="stat-number">24/7</div>
+            <div className="stat-label">Soporte Técnico</div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="contact-section">
-        <h2>¿Necesitas Acceso?</h2>
-        <p>Contacta con el administrador del sistema para obtener tus credenciales de acceso</p>
-        <a href="mailto:admin@innprojectmanagement.com" className="btn-contact">
-          Contactar Administrador
-        </a>
-      </div>
+      <section className="cta-section">
+        <h2 className="cta-title">¿Listo para comenzar?</h2>
+        <p className="cta-description">
+          Únete a cientos de equipos que ya están optimizando su gestión de proyectos con nuestra plataforma.
+        </p>
+        {!isAuthenticated ? (
+          <Link to="/login" className="cta-button">
+            Iniciar Sesión
+          </Link>
+        ) : (
+          <Link 
+            to={
+              userRole === 'super_administrador' 
+                ? '/admin' 
+                : userRole === 'project_admin' 
+                  ? '/project-dashboard' 
+                  : '/user-dashboard'
+            } 
+            className="cta-button"
+          >
+            Ir al Dashboard
+          </Link>
+        )}
+      </section>
     </div>
   );
 };

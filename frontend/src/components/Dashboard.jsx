@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LOCAL_URL_API } from "../constants/constans";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import '../styles/Dashboard.css';
 
 const Dashboard = () => {
   const [proyectos, setProyectos] = useState([]);

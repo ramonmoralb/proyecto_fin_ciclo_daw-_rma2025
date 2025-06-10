@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LOCAL_URL_API } from '../constants/constans';
-import '../styles/CrearProyecto.css';
+
 
 const EditarProyecto = () => {
   const { id } = useParams();

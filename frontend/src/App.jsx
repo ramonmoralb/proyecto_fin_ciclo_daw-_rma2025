@@ -10,11 +10,11 @@ import CrearProyecto from "./components/CrearProyecto";
 import EditarProyecto from "./components/EditarProyecto";
 import AdminDashboard from "./components/AdminDashboard";
 import ChangePassword from "./components/ChangePassword";
-import "./App.css";
 import { AuthProvider } from "./context/AuthContext";
 import ProjectDashboard from './components/ProjectDashboard';
 import UserDashboard from './components/UserDashboard';
 import UserProfile from './components/UserProfile';
+import './styles/base.css';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -139,6 +139,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
         <Footer />

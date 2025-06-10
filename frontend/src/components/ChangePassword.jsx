@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LOCAL_URL_API } from '../constants/constans';
 import '../styles/ChangePassword.css';
 
+
 const ChangePassword = () => {
     const [formData, setFormData] = useState({
         current_password: '',

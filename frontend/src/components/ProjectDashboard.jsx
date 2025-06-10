@@ -3,8 +3,6 @@ import axios from 'axios';
 import { LOCAL_URL_API } from '../constants/constans';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import '../styles/ProjectDashboard.css';
-import '../styles/SalesStyles.css';
 import ClientCard from './ClientCard';
 import ProductCard from './ProductCard';
 import OrderCard from './OrderCard';

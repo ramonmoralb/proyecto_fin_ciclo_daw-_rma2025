@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import '../styles/CardStyles.css';
+import '../styles/OrderCard.css';
 
 const OrderCard = ({ order, onStatusChange, onDelete, userRole }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -71,17 +71,6 @@ const OrderCard = ({ order, onStatusChange, onDelete, userRole }) => {
               ))}
             </div>
             
-            <div className="info-section">
-              <h5>Cambiar Estado</h5>
-              <select 
-                value={order.meta?.estado || 'pendiente'} 
-                onChange={handleStatusChange}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="pendiente">Pendiente</option>
-                <option value="servido">Servido</option>
-              </select>
-            </div>
           </div>
         )}
       </div>

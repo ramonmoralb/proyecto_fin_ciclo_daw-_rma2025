@@ -3,12 +3,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import { LOCAL_URL_API } from "../constants/constans";
-import "../styles/Header.css";
+import logo from '../assets/LogoWebSVG.svg';
+import '../styles/Header.css';
+
 
 const Header = () => {
   const { isAuthenticated, userRole, userName, logout } = useAuth();
   const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -47,31 +50,41 @@ const Header = () => {
     navigate("/login");
   };
 
+  const handleMenuToggle = () => {
+    setMenuOpen((prev) => !prev);
+  };
+
   return (
     <header className="header">
       <div className="header-container">
         <div className="logo">
-          <Link to="/">Inn Project Management</Link>
+          <Link to="/">
+            <img src={logo} alt="Inn Project Management Logo" style={{ height: 48, width: 48, marginRight: 12, verticalAlign: 'middle' }} />
+            <span style={{ verticalAlign: 'middle', fontWeight: 700, color: '#38b6ff', fontSize: '1.3rem', letterSpacing: '1px' }}>Inn Project Management</span>
+          </Link>
         </div>
-        <nav className="nav-menu">
+        <button className="menu-toggle" onClick={handleMenuToggle} aria-label="Abrir menú">
+          <span className="menu-icon">☰</span>
+        </button>
+        <nav className={`nav-menu${menuOpen ? ' open' : ''}`}>
           {!isAuthenticated ? (
             <>
-              <Link to="/" className="nav-link">Inicio</Link>
-              <Link to="/login" className="nav-link">Iniciar Sesión</Link>
+              <Link to="/" className="nav-link" onClick={() => setMenuOpen(false)}>Inicio</Link>
+              <Link to="/login" className="nav-link" onClick={() => setMenuOpen(false)}>Iniciar Sesión</Link>
             </>
           ) : (
             <>
               {userRole === 'super_administrador' && (
-                <Link to="/admin-dashboard" className="nav-link">Panel de Administración</Link>
+                <Link to="/admin-dashboard" className="nav-link" onClick={() => setMenuOpen(false)}>Panel de Administración</Link>
               )}
               {userRole === 'project_admin' && (
-                <Link to="/project-dashboard" className="nav-link">Panel de Proyectos</Link>
+                <Link to="/project-dashboard" className="nav-link" onClick={() => setMenuOpen(false)}>Panel de Proyectos</Link>
               )}
               {userRole === 'project_user' && (
-                <Link to="/user-dashboard" className="nav-link">Mis Proyectos</Link>
+                <Link to="/user-dashboard" className="nav-link" onClick={() => setMenuOpen(false)}>Mis Proyectos</Link>
               )}
               <div className="user-menu">
-                <Link to="/profile" className="profile-link">
+                <Link to="/profile" className="profile-link" onClick={() => setMenuOpen(false)}>
                   <div className="user-info">
                     {profileImage ? (
                       <img 

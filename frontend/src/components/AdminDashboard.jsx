@@ -8,7 +8,6 @@ import ProductCard from './ProductCard';
 import OrderCard from './OrderCard';
 import CreateOrder from './CreateOrder';
 import '../styles/AdminDashboard.css';
-import '../styles/SalesStyles.css';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);

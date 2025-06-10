@@ -1,0 +1,233 @@
+.order-card {
+  background-color: var(--white-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.order-header {
+  padding: var(--spacing-md);
+  background-color: var(--light-color);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-id {
+  color: var(--dark-color);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+}
+
+.order-date {
+  color: var(--gray-color);
+  font-size: var(--font-size-sm);
+}
+
+.order-status {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.status-pendiente {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-servido {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.order-content {
+  padding: var(--spacing-md);
+}
+
+.order-details {
+  margin-bottom: var(--spacing-md);
+}
+
+.order-details p {
+  color: var(--gray-color);
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-xs) 0;
+}
+
+.order-details strong {
+  color: var(--dark-color);
+  margin-right: var(--spacing-xs);
+}
+
+.products-list {
+  margin-top: var(--spacing-md);
+}
+
+.product-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.product-item:last-child {
+  border-bottom: none;
+}
+
+.product-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.product-quantity {
+  background-color: var(--light-color);
+  color: var(--dark-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.product-name {
+  color: var(--dark-color);
+  font-size: var(--font-size-sm);
+}
+
+.product-price {
+  color: var(--dark-color);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.order-total {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  text-align: right;
+}
+
+.total-label {
+  color: var(--gray-color);
+  font-size: var(--font-size-sm);
+  margin-right: var(--spacing-sm);
+}
+
+.total-amount {
+  color: var(--dark-color);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.order-actions {
+  padding: var(--spacing-md);
+  background-color: var(--light-color);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}
+
+.btn-view {
+  background-color: var(--primary-color);
+  color: var(--white-color);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-view:hover {
+  background-color: var(--secondary-color);
+}
+
+.btn-delete {
+  background-color: var(--danger-color);
+  color: var(--white-color);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-delete:hover {
+  background-color: #dc2626;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .order-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .order-status {
+    align-self: flex-start;
+  }
+
+  .product-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .product-price {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-card {
+    border-radius: var(--border-radius-md);
+  }
+
+  .order-header,
+  .order-content,
+  .order-actions {
+    padding: var(--spacing-sm);
+  }
+
+  .order-id {
+    font-size: var(--font-size-sm);
+  }
+
+  .order-date {
+    font-size: var(--font-size-xs);
+  }
+
+  .order-status {
+    font-size: var(--font-size-xs);
+  }
+
+  .product-quantity,
+  .product-name,
+  .product-price {
+    font-size: var(--font-size-xs);
+  }
+
+  .total-amount {
+    font-size: var(--font-size-md);
+  }
+
+  .btn-view,
+  .btn-delete {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+  }
+} 

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import ClientOrders from './ClientOrders';
-import '../styles/CardStyles.css';
-import '../styles/SalesStyles.css';
+import '../styles/ClientCard.css';
 
 const ClientCard = ({ client, userRole, onDelete }) => {
   const [showOrders, setShowOrders] = useState(false);

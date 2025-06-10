@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LOCAL_URL_API } from "../constants/constans";
 import TableroKanban from "./TableroKanban";
 import { useNavigate, useParams } from "react-router-dom";
+import '../styles/Proyecto.css';
 
 const Proyecto = () => {
   const { id } = useParams();

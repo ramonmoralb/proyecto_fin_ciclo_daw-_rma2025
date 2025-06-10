@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { LOCAL_URL_API } from "../constants/constans";
 import axios from "axios";
+import '../styles/TableroKanban.css';
 
 const TableroKanban = ({ proyectoId, participantes, tareasIniciales, userRole }) => {
   const [tareas, setTareas] = useState({

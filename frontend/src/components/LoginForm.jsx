@@ -3,7 +3,7 @@ import axios from "axios";
 import { LOCAL_URL_API } from "../constants/constans";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import "../styles/Auth.css";
+
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
